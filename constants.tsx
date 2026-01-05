@@ -26,24 +26,17 @@ export interface Knob {
 }
 
 export const MOCK_KNOBS: Knob[] = [
-  { id: 'k1', name: 'PchEnergyReport', path: 'Intel Advanced Menu/PCH-IO Configuration/Energy Reporting', displayValue: 'Disabled', rawValue: '0x00', status: 'active', isOverridden: true },
-  { id: 'k2', name: 'FastBootTimeOut', path: 'Boot/Boot Configuration', displayValue: '1', rawValue: '0x0001', status: 'active', isOverridden: false },
-  { id: 'k3', name: 'MipiCam_ControlLogic2_GpioFunction_2', path: 'SA Configuration/MIPI Camera/Control Logic', displayValue: 'Disabled', rawValue: '0x00', status: 'active', isOverridden: true },
-  { id: 'k4', name: 'CpuPcieSlot1_GenSpeed', path: 'Intel Advanced Menu/CPU Configuration/PCI Express/Speed', displayValue: 'Auto', rawValue: '0xFF', status: 'active', isOverridden: false },
-  { id: 'k5', name: 'TccActivationOffset', path: 'Intel Advanced Menu/CPU Configuration', displayValue: '0', rawValue: '0x00', status: 'active', isOverridden: true },
-  { id: 'k6', name: 'VmxEnable', path: 'CPU/Security', displayValue: 'Enabled', rawValue: '0x01', status: 'active', isOverridden: false },
-  { id: 'k7', name: 'HyperThreading', path: 'CPU/Performance', displayValue: 'Enabled', rawValue: '0x01', status: 'active', isOverridden: false },
-  { id: 'k8', name: 'IgpMemorySize', path: 'Graphics/Internal', displayValue: '64MB', rawValue: '0x40', status: 'active', isOverridden: true },
-  { id: 'k9', name: 'SataModeSelection', path: 'Storage/PCH', displayValue: 'AHCI', rawValue: '0x00', status: 'active', isOverridden: false },
-  { id: 'k10', name: 'UsbPortDisable_1', path: 'Connectivity/USB', displayValue: 'Disabled', rawValue: '0x00', status: 'active', isOverridden: true },
-  { id: 'k11', name: 'FanPolicy_1', path: 'Thermal/Fans', displayValue: 'Quiet', rawValue: '0x02', status: 'active', isOverridden: true },
-  { id: 'k12', name: 'DramVoltage', path: 'Memory/Overclocking', displayValue: '1.2V', rawValue: '0x04B0', status: 'active', isOverridden: true },
-  { id: 'k13', name: 'SecureBootMode', path: 'Security/Boot', displayValue: 'Standard', rawValue: '0x00', status: 'active', isOverridden: false },
-  { id: 'k14', name: 'TpmState', path: 'Security/TPM', displayValue: 'Enabled', rawValue: '0x01', status: 'active', isOverridden: false },
-  { id: 'k15', name: 'AudioCodecPower', path: 'PCH/Audio', displayValue: 'On', rawValue: '0x01', status: 'active', isOverridden: true },
-  { id: 'k16', name: 'DisplayResolution_Limit', path: 'Graphics/Display', displayValue: '4K', rawValue: '0x0F00', status: 'active', isOverridden: false },
-  { id: 'k17', name: 'PcieLtrSupport', path: 'PCH/PCI Express', displayValue: 'Enabled', rawValue: '0x01', status: 'active', isOverridden: true },
-  { id: 'k18', name: 'SpdWriteDisable', path: 'Memory/Security', displayValue: 'Off', rawValue: '0x00', status: 'active', isOverridden: true },
+  { id: 'k1', name: 'DfxDcsRxDfeGainCoefficient', path: 'Socket Configuration/Memory Configuration/Memory Dfx Configuration/DCS RX DFE Gain Coefficient', displayValue: '1: +6 dB', rawValue: '0x1', status: 'active', isOverridden: true },
+  { id: 'k2', name: 'PchPcieRootPortMaxPayloadSizeSupportedExceeding...', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port Configuration/Advanced Error Reporting/Ca...', displayValue: '256 Bytes', rawValue: '0x1', status: 'active', isOverridden: true },
+  { id: 'k3', name: 'PcieRootPort0L1Substates', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 0', displayValue: 'L1.1', rawValue: '0x1', status: 'active', isOverridden: true },
+  { id: 'k4', name: 'PcieRootPort0Speed', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 0', displayValue: 'Auto', rawValue: '0x0', status: 'active', isOverridden: true },
+  { id: 'k5', name: 'PcieRootPort1Aspm', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 1', displayValue: 'Enabled', rawValue: '0x1', status: 'active', isOverridden: true },
+  { id: 'k6', name: 'PcieRootPort1L1Substates', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 1', displayValue: 'L1.1', rawValue: '0x1', status: 'active', isOverridden: true },
+];
+
+export const MOCK_STRAPS = [
+  { key: 'STRAP_PCIE_GEN_SEL', value: '0x3' },
+  { key: 'STRAP_DEBUG_INTERFACE_EN', value: '0x1' },
 ];
 
 export interface Ingredient {

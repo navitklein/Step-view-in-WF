@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { AppContextType, Project, NavigationContext, ContextState } from './types';
-import { COLORS, ICONS, MOCK_INGREDIENTS, MOCK_RELEASES, MOCK_PROJECTS, MOCK_KNOBS, MOCK_BUILD_DEPS, MOCK_WORKFLOW, Ingredient, Release, Knob } from './constants';
+import { COLORS, ICONS, MOCK_INGREDIENTS, MOCK_RELEASES, MOCK_PROJECTS, MOCK_KNOBS, MOCK_STRAPS, MOCK_BUILD_DEPS, MOCK_WORKFLOW, Ingredient, Release, Knob } from './constants';
 import SidebarTier1 from './components/SidebarTier1';
 import SidebarTier2 from './components/SidebarTier2';
 import Header from './components/Header';
@@ -89,7 +89,7 @@ const App: React.FC = () => {
   const [collapsedBuildSections, setCollapsedBuildSections] = useState({
     settings: true,
     deps: true,
-    knobs: true,
+    knobs: false,
     straps: true,
     logs: true
   });
@@ -244,8 +244,8 @@ const App: React.FC = () => {
       { label: 'Dep. Changes', val: isUnifiedPatch ? '12' : '4', color: 'blue' },
     ];
     if (!isUnifiedPatch) {
-      stats.push({ label: 'Knob Overrides', val: '18', color: 'amber' });
-      stats.push({ label: 'Strap Overrides', val: '2', color: 'purple' });
+      stats.push({ label: 'Knob Overrides', val: String(MOCK_KNOBS.length), color: 'amber' });
+      stats.push({ label: 'Strap Overrides', val: String(MOCK_STRAPS.length), color: 'purple' });
     }
     stats.push({ label: 'Package Size', val: isUnifiedPatch ? '4KB' : '32MB', color: 'slate' });
 
@@ -349,7 +349,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'BUILD SETTINGS'}</span></div>
+              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI SETTINGS'}</span></div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.settings ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedBuildSections.settings && (
@@ -376,9 +376,11 @@ const App: React.FC = () => {
                </div>
             )}
           </section>
+
+          {/* Dependencies Section - Moved Before Overrides for IFWI */}
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-blue-600 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'BUILD DEPENDENCIES'}</span></div>
+              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-blue-600 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span></div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedBuildSections.deps && (
@@ -400,20 +402,106 @@ const App: React.FC = () => {
                </div>
             )}
           </section>
+
+          {/* Knobs Overrides Section */}
+          {!isUnifiedPatch && (
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
+              <div onClick={() => toggleBuildSection('knobs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3"><div className="w-1 h-3 bg-blue-600 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">KNOBS OVERRIDES ({MOCK_KNOBS.length})</span></div>
+                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.knobs ? '' : 'rotate-90'}`} />
+              </div>
+              {!collapsedBuildSections.knobs && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3">Knob Name</th>
+                        <th className="px-6 py-3">Full Path</th>
+                        <th className="px-6 py-3 text-right">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {MOCK_KNOBS.map((knob) => (
+                        <tr key={knob.id} className="hover:bg-slate-50/50 group transition-colors">
+                          <td className="px-6 py-3 text-[11px] font-black text-slate-800">{knob.name}</td>
+                          <td className="px-6 py-3 text-[10px] text-slate-400 font-medium max-w-md truncate">{knob.path}</td>
+                          <td className="px-6 py-3 text-right">
+                             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white text-brand rounded-full text-[10px] font-black tracking-tight border border-blue-200 shadow-[0_1px_4px_rgba(15,108,189,0.05)] ring-1 ring-blue-50">
+                               {knob.displayValue} <span className="opacity-50 font-bold mono">({knob.rawValue})</span>
+                             </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Straps Overrides Section */}
+          {!isUnifiedPatch && (
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
+              <div onClick={() => toggleBuildSection('straps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3"><div className="w-1 h-3 bg-purple-600 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">STRAPS OVERRIDES ({MOCK_STRAPS.length})</span></div>
+                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.straps ? '' : 'rotate-90'}`} />
+              </div>
+              {!collapsedBuildSections.straps && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-3">Key</th>
+                        <th className="px-6 py-3 text-right">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {MOCK_STRAPS.map((strap, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 group transition-colors">
+                          <td className="px-6 py-3 text-[11px] font-black text-slate-800 mono">{strap.key}</td>
+                          <td className="px-6 py-3 text-right">
+                             <span className="inline-flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-black mono border border-purple-100">
+                               {strap.value}
+                             </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('logs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3"><div className="w-1 h-3 bg-slate-900 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">EXECUTION LOGS</span></div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.logs ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedBuildSections.logs && (
-               <div className="p-4 bg-slate-900 h-64 overflow-y-auto custom-scrollbar">
-                  <div className="mono text-[10px] text-emerald-400/80 space-y-1">
-                    <p>[14:35:01] INFO: Initializing execution workspace...</p>
-                    <p>[14:35:10] INFO: Fetching baseline Rel_ARL_24.12.0...</p>
-                    {isRunning && <p className="animate-pulse text-blue-400">[14:40:12] INFO: Processing {isUnifiedPatch ? 'patch metadata' : 'final IFWI image binary'}...</p>}
-                    {isCompleted && resOutcome === 'PASSED' && <p className="text-emerald-400 font-black">[14:55:00] SUCCESS: Execution completed.</p>}
-                    {isCompleted && resOutcome === 'FAILED' && <p className="text-rose-400 font-black">[14:55:00] ERROR: Execution failed in linking phase (code 0x2A).</p>}
-                  </div>
+               <div className="p-10 bg-slate-50 flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
+                  {isRunning ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin" />
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Logs unavailable</span>
+                        <p className="text-[10px] text-slate-400 max-w-xs mt-1">Detailed execution logs are being generated and will be available for download once the build process completes.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-5">
+                      <div className="w-12 h-12 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
+                        <ICONS.Terminal className="w-6 h-6" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Execution Logs Ready</span>
+                        <p className="text-[10px] text-slate-400 max-w-xs mt-1">Direct log visibility is limited in this release. Please download the full log package for detailed analysis.</p>
+                      </div>
+                      <button className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md">
+                        <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD EXECUTION LOGS
+                      </button>
+                    </div>
+                  )}
                </div>
             )}
           </section>
@@ -422,6 +510,55 @@ const App: React.FC = () => {
            <div className="flex items-center gap-4 text-[9px] font-black text-slate-300 uppercase tracking-widest"><span>WORKFLOW: FW_AUTO_BUILD_V2</span><span className="opacity-40">•</span><span>NODE: {isUnifiedPatch ? 'PATCH_SRV_01' : 'BLD_SRV_04'}_REGION_EU</span></div>
            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{isUnifiedPatch ? 'Orchestrator: PATCH_GEN_V1' : 'Compiler: INTEL_ONEAPI_2025.x'}</div>
         </div>
+      </div>
+    );
+  };
+
+  const renderKPIStrip = () => {
+    if (currentTestPhase === 'DISCOVERY') return null;
+
+    let stats: { label: string; val: string; color: string; pulse?: boolean }[] = [];
+
+    if (currentTestPhase === 'PRE_SUBMIT') {
+      stats = [
+        { label: 'Discovered', val: '41', color: 'slate' },
+        { label: 'Selected', val: '41', color: 'blue' },
+        { label: 'Excluded', val: '0', color: 'rose' },
+      ];
+    } else if (currentTestPhase === 'SUBMISSION') {
+      stats = [
+        { label: 'Discovered', val: '41', color: 'slate' },
+        { label: 'Submitted', val: '41', color: 'blue', pulse: true },
+      ];
+    } else {
+      // Running / Review / Completed
+      const isCompleted = currentTestPhase === 'COMPLETED';
+      const isRunning = currentTestPhase === 'RUNNING';
+      stats = [
+        { label: 'Discovered', val: '41', color: 'slate' },
+        { label: 'Submitted', val: '41', color: 'slate' },
+        { label: 'Completed', val: isCompleted ? '41' : (isRunning ? '12' : '0'), color: 'slate' },
+        { label: 'Running', val: isRunning ? '1' : '0', color: 'blue', pulse: isRunning },
+        { label: 'Passed', val: isCompleted && resOutcome === 'PASSED' ? '41' : (isCompleted ? '32' : (isRunning ? '10' : '0')), color: 'emerald' },
+        { label: 'Failed', val: isCompleted && resOutcome === 'FAILED' ? '41' : (isCompleted ? '9' : (isRunning ? '2' : '0')), color: 'rose' },
+        { label: 'Pending', val: isCompleted ? '0' : (isRunning ? '28' : '0'), color: 'slate' },
+        { label: 'Pass Rate', val: isCompleted && resOutcome === 'PASSED' ? '100%' : (isCompleted ? '78%' : (isRunning ? '83%' : '0%')), color: 'blue' },
+      ];
+    }
+
+    return (
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+        {stats.map((stat, i) => (
+          <div key={i} className={`flex-shrink-0 min-w-[115px] bg-white p-3 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300 ${stat.color === 'blue' ? 'bg-blue-50/30 border-blue-100' : stat.color === 'emerald' ? 'bg-emerald-50/30 border-emerald-100' : stat.color === 'rose' ? 'bg-rose-50/30 border-rose-100' : ''}`}>
+            <div className="flex flex-col">
+              <span className={`text-[18px] font-black text-slate-800 tracking-tight leading-none mb-1 flex items-center gap-1.5`}>
+                {stat.val}
+                {stat.pulse && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]" />}
+              </span>
+              <span className={`text-[9px] font-black uppercase tracking-wider ${stat.color === 'slate' ? 'text-slate-400' : 'text-' + stat.color + '-600'}`}>{stat.label}</span>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
@@ -443,11 +580,11 @@ const App: React.FC = () => {
     let card1PrimaryTextColor = "text-slate-600";
     let card1Label = "In progress";
     
-    if (isRunning || isSubmission || isReviewReq) {
+    if (isRunning || isSubmission || isReviewReq || isDiscovery) {
       card1Bg = "bg-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.2)]";
       card1TextColor = "text-blue-100";
       card1PrimaryTextColor = "text-white";
-      card1Label = "In progress";
+      card1Label = isDiscovery ? "Scanning..." : isSubmission ? "Submitting..." : "In progress";
     } else if (isCompleted) {
       card1Bg = resOutcome === 'PASSED' ? "bg-emerald-600 shadow-[0_4px_12px_rgba(16,185,129,0.2)]" : "bg-rose-600 shadow-[0_4px_12px_rgba(225,29,72,0.2)]";
       card1Label = resOutcome === 'PASSED' ? "PASSED" : "FAILED";
@@ -455,35 +592,9 @@ const App: React.FC = () => {
       card1PrimaryTextColor = "text-white";
     }
 
-    const renderKPIStrip = () => {
-      if (isDiscovery) return null;
-      let stats = [
-        { label: 'Discovered', val: '41', color: 'slate' },
-        { label: 'Submitted', val: isPreSubmit ? '0' : '41', color: 'slate' },
-        { label: 'Completed', val: isCompleted ? '41' : (isRunning ? '12' : '0'), color: 'slate' },
-        { label: 'Running', val: isRunning ? '1' : '0', color: 'blue', pulse: isRunning },
-        { label: 'Passed', val: isCompleted && resOutcome === 'PASSED' ? '41' : (isCompleted ? '32' : (isRunning ? '10' : '0')), color: 'emerald' },
-        { label: 'Failed', val: isCompleted && resOutcome === 'FAILED' ? '41' : (isCompleted ? '9' : (isRunning ? '2' : '0')), color: 'rose' },
-      ];
-
-      return (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
-          {stats.map((stat, i) => (
-            <div key={i} className={`flex-shrink-0 min-w-[125px] bg-white p-3 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300 ${stat.color === 'blue' ? 'bg-blue-50/30 border-blue-100' : stat.color === 'emerald' ? 'bg-emerald-50/30 border-emerald-100' : stat.color === 'rose' ? 'bg-rose-50/30 border-rose-100' : ''}`}>
-              <div className="flex flex-col">
-                <span className={`text-[18px] font-black text-slate-800 tracking-tight leading-none mb-1 flex items-center gap-1.5`}>
-                  {stat.val}
-                  {stat.pulse && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]" />}
-                </span>
-                <span className={`text-[9px] font-black uppercase tracking-wider ${stat.color === 'slate' ? 'text-slate-400' : 'text-' + stat.color + '-600'}`}>{stat.label}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    };
-
     const renderTestSettings = () => {
+      // In Discovery we don't show settings yet, or we show them as placeholders. 
+      // Usually settings are defined before discovery starts or during review.
       if (isDiscovery || isSubmission) return null;
       return (
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
@@ -513,18 +624,29 @@ const App: React.FC = () => {
       );
     };
 
-    const renderTestlinesMatrix = () => {
+    const renderMainContentArea = () => {
       if (isDiscovery || isSubmission) {
+        const msg = isDiscovery 
+          ? "We're currently scanning for available tests. This process may take a moment to complete. Please wait while we prepare your tests..."
+          : "We're submitting your tests to the NGA. This process may take anywhere from a few seconds to ~15 minutes. Please wait while we prepare your tests...";
+        
         return (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col items-center justify-center p-12 text-center animate-in fade-in slide-in-from-bottom-2 duration-500 min-h-[300px]">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col items-center justify-center p-12 text-center animate-in fade-in slide-in-from-bottom-2 duration-500 min-h-[400px]">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6 relative">
                <div className="absolute inset-0 rounded-full border-4 border-blue-100 border-t-blue-500 animate-spin" />
                <ICONS.VDCLogo className="w-8 h-8 opacity-20" />
             </div>
-            <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-[0.2em] mb-3">{isDiscovery ? 'DISCOVERY IN PROGRESS' : 'DISPATCHING TO NGA'}</h3>
-            <p className="text-[11px] text-slate-400 max-w-md leading-relaxed font-medium">Please wait while the system scans for tests and organizes the execution queue. This typically takes 5-15 minutes depending on project size...</p>
+            <h3 className="text-[14px] font-black text-slate-800 uppercase tracking-[0.2em] mb-3">
+              {isDiscovery ? 'DISCOVERY IN PROGRESS' : 'SUBMITTING TO NGA'}
+            </h3>
+            <p className="text-[11px] text-slate-400 max-w-md leading-relaxed font-medium">
+              {msg}
+            </p>
             <div className="mt-8 w-64 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${executionProgress}%` }} />
+            </div>
+            <div className="mt-4 text-[9px] font-black text-slate-300 uppercase tracking-widest animate-pulse">
+              System active • {executionProgress}% complete
             </div>
           </div>
         );
@@ -536,12 +658,14 @@ const App: React.FC = () => {
             <div onClick={() => toggleSection('table')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-3 bg-blue-600 rounded-full" />
-                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">TESTLINES MATRIX (41 ITEMS)</span>
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">
+                  {isPreSubmit ? 'DISCOVERED TESTS (41 ITEMS)' : 'TESTLINES MATRIX (41 ITEMS)'}
+                </span>
               </div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedSections.table ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedSections.table && (
-              <div className="overflow-x-auto max-h-[400px] custom-scrollbar overflow-y-auto">
+              <div className="overflow-x-auto max-h-[450px] custom-scrollbar overflow-y-auto">
                 <table className="w-full text-[11px] text-left border-collapse">
                   <thead className="bg-slate-50 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">
                     <tr>
@@ -613,9 +737,11 @@ const App: React.FC = () => {
                 <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
                    Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
                 </button>
-                <button onClick={toggleAllTestSections} className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 uppercase tracking-widest transition-all flex items-center gap-1.5">
-                   {areAllCollapsed ? 'Expand All' : 'Collapse All'}
-                </button>
+                {!isDiscovery && !isSubmission && (
+                  <button onClick={toggleAllTestSections} className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 uppercase tracking-widest transition-all flex items-center gap-1.5">
+                    {areAllCollapsed ? 'Expand All' : 'Collapse All'}
+                  </button>
+                )}
              </div>
           </div>
         </div>
@@ -679,10 +805,10 @@ const App: React.FC = () => {
                 <div className="h-[1px] bg-slate-50 w-full" />
                 <div className="flex items-center justify-between"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">NGA CONNECTION</span><span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-600 rounded text-[8px] font-black uppercase ring-1 ring-inset ring-green-100">ONLINE</span></div>
              </div>
-             {isRunning ? (
+             {(isRunning || isDiscovery || isSubmission) ? (
                <div className="mt-2 px-4">
                  <div className="flex items-center justify-between mb-1">
-                   <span className="text-[7px] font-black text-slate-300 uppercase">Execution progress</span>
+                   <span className="text-[7px] font-black text-slate-300 uppercase">{isDiscovery ? 'Scanning' : isSubmission ? 'Submitting' : 'Execution'} progress</span>
                    <span className="text-[8px] font-black text-blue-600 mono">{executionProgress}%</span>
                  </div>
                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
@@ -697,7 +823,7 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
           {renderKPIStrip()}
           {renderTestSettings()}
-          {renderTestlinesMatrix()}
+          {renderMainContentArea()}
         </div>
 
         {/* Step Footer */}
