@@ -78,14 +78,12 @@ const App: React.FC = () => {
   const [isWorkflowSidebarCollapsed, setIsWorkflowSidebarCollapsed] = useState(false);
   const [isLifecyclePopoverOpen, setIsLifecyclePopoverOpen] = useState(false);
   
-  // Test view collapse state - Table expanded by default, others collapsed
   const [collapsedSections, setCollapsedSections] = useState({
     settings: true,
     table: false,
     heatmap: true
   });
 
-  // Build view collapse state - All collapsed by default
   const [collapsedBuildSections, setCollapsedBuildSections] = useState({
     settings: true,
     deps: true,
@@ -187,7 +185,6 @@ const App: React.FC = () => {
 
   const cycleDemoPhase = () => {
     if (selectedStepId === 'step1' || selectedStepId === 'step0') {
-      // Build Step Cycling
       if (currentTestPhase === 'RUNNING') {
         setCurrentTestPhase('COMPLETED');
         setResOutcome('PASSED');
@@ -199,7 +196,6 @@ const App: React.FC = () => {
         setResOutcome(null);
       }
     } else {
-      // Test Step Cycling
       const idx = TEST_PHASES.findIndex(p => p.id === currentTestPhase);
       const nextIdx = (idx + 1) % TEST_PHASES.length;
       setCurrentTestPhase(TEST_PHASES[nextIdx].id);
@@ -239,7 +235,6 @@ const App: React.FC = () => {
 
     const title = isUnifiedPatch ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION";
 
-    // Stats row logic
     const stats = [
       { label: 'Dep. Changes', val: isUnifiedPatch ? '12' : '4', color: 'blue' },
     ];
@@ -255,6 +250,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">{title}</h1>
              <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+             
              <div className="flex items-center gap-2">
                 <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
                    Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
@@ -264,18 +260,18 @@ const App: React.FC = () => {
                 </button>
              </div>
           </div>
-          
-          <div className="flex gap-2">
+
+          <div className="flex items-center gap-2">
             {isSuccess && (
               <>
-                <button className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-white uppercase tracking-widest bg-brand rounded-md hover:bg-brand/90 shadow-sm transition-all animate-in fade-in zoom-in-95 duration-300">
-                    <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD PACKAGE
-                </button>
                 <button 
                   onClick={() => handleTabChange('Releases')}
                   className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-brand uppercase tracking-widest bg-white border border-brand rounded-md hover:bg-blue-50 transition-all animate-in fade-in zoom-in-95 duration-300"
                 >
                     <ICONS.ExternalLink className="w-3.5 h-3.5" /> GO TO RELEASE VIEW
+                </button>
+                <button className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-white uppercase tracking-widest bg-brand rounded-md hover:bg-brand/90 shadow-sm transition-all animate-in fade-in zoom-in-95 duration-300">
+                    <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD PACKAGE
                 </button>
               </>
             )}
@@ -300,7 +296,6 @@ const App: React.FC = () => {
                   <span className={`text-[11px] font-bold ${card1PrimaryTextColor}`}>{isCompleted ? '12/17/25 14:55' : 'TBD'}</span>
                </div>
             </div>
-            {/* Indeterminate Progress Bar on Bottom Border of Left Card */}
             {isRunning && (
               <div className="absolute bottom-0 left-0 right-0 h-1 overflow-hidden bg-white/10">
                 <div className="h-full bg-white/40 w-1/3 animate-indeterminate-progress shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
@@ -377,10 +372,9 @@ const App: React.FC = () => {
             )}
           </section>
 
-          {/* Dependencies Section - Moved Before Overrides for IFWI */}
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-blue-600 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span></div>
+              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-[#CD519D] rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span></div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedBuildSections.deps && (
@@ -403,7 +397,6 @@ const App: React.FC = () => {
             )}
           </section>
 
-          {/* Knobs Overrides Section */}
           {!isUnifiedPatch && (
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
               <div onClick={() => toggleBuildSection('knobs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
@@ -439,7 +432,6 @@ const App: React.FC = () => {
             </section>
           )}
 
-          {/* Straps Overrides Section */}
           {!isUnifiedPatch && (
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
               <div onClick={() => toggleBuildSection('straps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
@@ -531,7 +523,6 @@ const App: React.FC = () => {
         { label: 'Submitted', val: '41', color: 'blue', pulse: true },
       ];
     } else {
-      // Running / Review / Completed
       const isCompleted = currentTestPhase === 'COMPLETED';
       const isRunning = currentTestPhase === 'RUNNING';
       stats = [
@@ -593,8 +584,6 @@ const App: React.FC = () => {
     }
 
     const renderTestSettings = () => {
-      // In Discovery we don't show settings yet, or we show them as placeholders. 
-      // Usually settings are defined before discovery starts or during review.
       if (isDiscovery || isSubmission) return null;
       return (
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
@@ -728,7 +717,6 @@ const App: React.FC = () => {
 
     return (
       <div className="flex flex-col space-y-4 pb-10 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden">
-        {/* Step Header */}
         <div className="flex items-center justify-between shrink-0 mb-1">
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">TEST step execution</h1>
@@ -746,7 +734,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 3-Card Summary Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
           <div className={`${card1Bg} p-4 rounded-xl border border-transparent flex flex-col justify-between h-[95px]`}>
             <div className="flex items-center justify-between mb-2">
@@ -776,8 +763,6 @@ const App: React.FC = () => {
                           ))}
                         </div>
                       </button>
-
-                      {/* Step Lifecycle Popover - Compact Version */}
                       {isLifecyclePopoverOpen && (
                         <div className="absolute top-10 left-0 w-[180px] bg-white rounded-lg shadow-2xl border border-slate-200 z-[100] p-2.5 animate-in fade-in zoom-in-95 duration-200">
                           <h4 className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">LIFECYCLE</h4>
@@ -819,14 +804,12 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Content Area */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
           {renderKPIStrip()}
           {renderTestSettings()}
           {renderMainContentArea()}
         </div>
 
-        {/* Step Footer */}
         <div className="shrink-0 py-2 border-t border-slate-100 flex items-center justify-between">
            <div className="flex items-center gap-4 text-[9px] font-black text-slate-300 uppercase tracking-widest"><span>Suite: ARL_H_VAL_V3</span><span className="opacity-40">•</span><span>Branch: main/firmware_rc</span></div>
            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Orchestrator: NGA_PROD_11.x</div>
