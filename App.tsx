@@ -85,6 +85,14 @@ const App: React.FC = () => {
     heatmap: false
   });
 
+  const [collapsedBuildSections, setCollapsedBuildSections] = useState({
+    settings: false,
+    deps: false,
+    knobs: false,
+    straps: false,
+    logs: true
+  });
+
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Resolution State
@@ -96,6 +104,10 @@ const App: React.FC = () => {
 
   const toggleSection = (id: keyof typeof collapsedSections) => {
     setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleBuildSection = (id: keyof typeof collapsedBuildSections) => {
+    setCollapsedBuildSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   // Handle outside click for lifecycle popover
@@ -172,14 +184,273 @@ const App: React.FC = () => {
   };
 
   const renderQuickBuildStepView = () => {
+    const isCompleted = currentTestPhase === 'COMPLETED';
+    const isRunning = currentTestPhase === 'RUNNING';
+
+    // Card 1: Build Summary logic
+    let card1Bg = "bg-white";
+    let card1TextColor = "text-slate-400";
+    let card1PrimaryTextColor = "text-slate-600";
+    let card1Label = "Active Build";
+    
+    if (isRunning) {
+      card1Bg = "bg-brand shadow-[0_4px_12px_rgba(15,108,189,0.2)]";
+      card1TextColor = "text-blue-100";
+      card1PrimaryTextColor = "text-white";
+      card1Label = "Building...";
+    } else if (isCompleted) {
+      const isFailed = resOutcome === 'FAILED';
+      card1Bg = isFailed ? "bg-rose-600 shadow-[0_4px_12px_rgba(225,29,72,0.2)]" : "bg-emerald-600 shadow-[0_4px_12px_rgba(16,185,129,0.2)]";
+      card1Label = isFailed ? "FAILED" : "SUCCESS";
+      card1TextColor = "text-white/80";
+      card1PrimaryTextColor = "text-white";
+    }
+
     return (
-      <div className="flex flex-col space-y-6 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-[20px] font-black text-slate-800 tracking-tight uppercase">IFWI BUILD EXECUTION</h1>
-          <div className="flex items-center gap-2">
-            <button className="px-5 py-2 text-[10px] font-black text-slate-600 uppercase tracking-widest border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">EXPAND ALL</button>
-            <button className="flex items-center gap-2 px-5 py-2 text-[10px] font-black text-white uppercase tracking-widest bg-blue-600 rounded-lg hover:bg-blue-700 shadow-md transition-shadow"><ICONS.Download className="w-4 h-4" /> DOWNLOAD RELEASE</button>
+      <div className="flex flex-col space-y-4 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden">
+        {/* Header Ribbon */}
+        <div className="flex items-center justify-between shrink-0 mb-1">
+          <div className="flex items-center gap-4">
+             <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">IFWI BUILD EXECUTION</h1>
+             <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+             <div className="flex flex-col">
+                <button 
+                  onClick={cycleDemoPhase}
+                  className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group"
+                >
+                  Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
+                </button>
+             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-white uppercase tracking-widest bg-brand rounded-md hover:bg-brand shadow-sm transition-all">
+                <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD RELEASE
+            </button>
+          </div>
+        </div>
+
+        {/* Master Control Hub - Balanced 3-Card Layout for Build Context */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+          {/* Card 1: Build Summary */}
+          <div className={`${card1Bg} p-4 rounded-xl border border-transparent transition-all duration-500 flex flex-col justify-between h-[95px]`}>
+            <div className="flex items-center justify-between mb-2">
+               <h3 className={`text-[9px] font-black uppercase tracking-[0.2em] ${card1TextColor}`}>Build Summary</h3>
+               <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter shadow-sm border ${isCompleted ? 'bg-white/20 text-white border-white/30' : 'bg-blue-500/30 text-white border-blue-400/50 animate-pulse'}`}>
+                  {card1Label}
+               </span>
+            </div>
+            <div className="flex gap-10 items-end">
+               <div className="flex flex-col">
+                  <span className={`text-[7px] font-black uppercase mb-0.5 ${card1TextColor}`}>START TIME</span>
+                  <span className={`text-[11px] font-bold ${card1PrimaryTextColor}`}>12/17/25 14:35</span>
+               </div>
+               <div className="flex flex-col">
+                  <span className={`text-[7px] font-black uppercase mb-0.5 ${card1TextColor}`}>END TIME</span>
+                  <span className={`text-[11px] font-bold ${card1PrimaryTextColor}`}>{isCompleted ? '12/17/25 14:55' : 'TBD'}</span>
+               </div>
+            </div>
+          </div>
+
+          {/* Card 2: Execution Time (Moved from KPI strip) */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center h-[95px] relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-2 opacity-5">
+                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+             </div>
+             <div className="flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Execution Time</span>
+                <span className="text-[20px] font-black text-slate-800 mono tracking-tight leading-none">00d 00h 20m 14s</span>
+                {isRunning && (
+                  <div className="w-full mt-3 px-4">
+                     <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-brand w-2/3 animate-[progress_2s_infinite_linear]" />
+                     </div>
+                  </div>
+                )}
+             </div>
+          </div>
+
+          {/* Card 3: Baseline/Target Context (Simplified) */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-[95px]">
+             <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">BASELINE RELEASE</span>
+                   <span className="text-[10px] font-black text-slate-800 mono tracking-tighter bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">REL_ARL_24.12.0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">TARGET RELEASE</span>
+                   <span className="text-[10px] font-black text-brand mono tracking-tighter bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">REL_ARL_24.12.1-RC1</span>
+                </div>
+             </div>
+             <div className="flex items-center justify-between border-t border-slate-50 pt-1">
+                <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest">ENGINE STATUS</span>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-50 text-green-600 rounded text-[8px] font-black uppercase ring-1 ring-inset ring-green-100">
+                  <div className="w-1 h-1 bg-green-500 rounded-full shadow-[0_0_6px_rgba(34,197,94,0.4)]" /> ONLINE
+                </div>
+             </div>
+          </div>
+        </div>
+
+        {/* Build KPI Strip */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar shrink-0">
+          {[
+            { label: 'Dep. Changes', val: '4', color: 'blue' },
+            { label: 'Knob Overrides', val: '18', color: 'amber' },
+            { label: 'Strap Overrides', val: '2', color: 'purple' },
+            { label: 'Package Size', val: '32MB', color: 'slate' },
+          ].map((stat, i) => (
+            <div key={i} className={`flex-shrink-0 min-w-[145px] bg-white p-3 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300`}>
+              <div className="flex flex-col">
+                <span className={`text-[16px] font-black text-slate-800 tracking-tight leading-none mb-1`}>{stat.val}</span>
+                <span className={`text-[9px] font-black uppercase tracking-wider text-slate-400`}>{stat.label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Scrollable Content: Sections */}
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
+          {/* Section: Build Settings */}
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-3 bg-amber-500 rounded-full" />
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">BUILD SETTINGS</span>
+              </div>
+              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.settings ? '' : 'rotate-90'}`} />
+            </div>
+            {!collapsedBuildSections.settings && (
+               <div className="p-0">
+                  <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+                    <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TARGET PLATFORM</span><span className="text-[12px] font-black text-slate-800">Arrow Lake-H</span></div>
+                    <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">BUILD ARCHITECTURE</span><span className="text-[12px] font-black text-slate-800">x86-64</span></div>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-slate-100">
+                    <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">REVISION CONTROL</span><span className="text-[12px] font-black text-slate-800">Git/Gerrit</span></div>
+                    <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">OPTIMIZATION LEVEL</span><span className="text-[12px] font-black text-slate-800">O3 Full Speed</span></div>
+                  </div>
+               </div>
+            )}
+          </section>
+
+          {/* Section: Dependencies */}
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-3 bg-blue-600 rounded-full" />
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">BUILD DEPENDENCIES</span>
+              </div>
+              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
+            </div>
+            {!collapsedBuildSections.deps && (
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left text-[11px] border-collapse">
+                   <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                     <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th><th className="px-6 py-3">Delta</th></tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {MOCK_BUILD_DEPS.slice(0, 5).map((dep, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-2.5 font-bold text-slate-700">Ingredient_{dep.id}</td>
+                          <td className="px-6 py-2.5 mono text-slate-400">{dep.version}</td>
+                          <td className="px-6 py-2.5 mono text-brand font-bold">v25.1.0</td>
+                          <td className="px-6 py-2.5"><span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[9px] font-black ring-1 ring-emerald-100">+ Updated</span></td>
+                        </tr>
+                      ))}
+                   </tbody>
+                 </table>
+               </div>
+            )}
+          </section>
+
+          {/* Section: Knobs */}
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div onClick={() => toggleBuildSection('knobs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-3 bg-brand rounded-full" />
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">FIRMWARE KNOBS OVERRIDES</span>
+              </div>
+              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.knobs ? '' : 'rotate-90'}`} />
+            </div>
+            {!collapsedBuildSections.knobs && (
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left text-[11px] border-collapse">
+                   <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                     <tr><th className="px-6 py-3">Knob Name</th><th className="px-6 py-3">Path</th><th className="px-6 py-3">Value</th><th className="px-6 py-3">Status</th></tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {MOCK_KNOBS.slice(0, 5).map((knob, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-2.5 font-bold text-slate-700">{knob.name}</td>
+                          <td className="px-6 py-2.5 text-slate-400 truncate max-w-[200px]">{knob.path}</td>
+                          <td className="px-6 py-2.5 mono font-bold text-brand">{knob.displayValue}</td>
+                          <td className="px-6 py-2.5">
+                            {knob.isOverridden && <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-[9px] font-black ring-1 ring-amber-100">OVERRIDDEN</span>}
+                          </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                 </table>
+               </div>
+            )}
+          </section>
+
+          {/* Section: Straps */}
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div onClick={() => toggleBuildSection('straps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-3 bg-purple-600 rounded-full" />
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">HARDWARE STRAPS OVERRIDES</span>
+              </div>
+              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.straps ? '' : 'rotate-90'}`} />
+            </div>
+            {!collapsedBuildSections.straps && (
+               <div className="p-6 grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">DEBUG_EN_STRAP</div>
+                    <div className="text-[14px] font-black text-brand mono">0x01 (FORCE_ENABLED)</div>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">PCIE_WIDTH_SELECT</div>
+                    <div className="text-[14px] font-black text-brand mono">0x04 (X16_SYMMETRIC)</div>
+                  </div>
+               </div>
+            )}
+          </section>
+
+          {/* Section: Build Execution Logs */}
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div onClick={() => toggleBuildSection('logs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-3 bg-slate-900 rounded-full" />
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">BUILD EXECUTION LOGS</span>
+              </div>
+              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.logs ? '' : 'rotate-90'}`} />
+            </div>
+            {!collapsedBuildSections.logs && (
+               <div className="p-4 bg-slate-900 h-64 overflow-y-auto custom-scrollbar">
+                  <div className="mono text-[10px] text-emerald-400/80 space-y-1">
+                    <p>[14:35:01] INFO: Initializing build workspace...</p>
+                    <p>[14:35:10] INFO: Fetching baseline Rel_ARL_24.12.0...</p>
+                    <p>[14:35:25] INFO: Patching ingredient_1022 with v25.1.0...</p>
+                    <p>[14:36:00] INFO: Compiling platform bios core...</p>
+                    <p>[14:37:12] DEBUG: Override knob 'HyperThreading' to 'Enabled'</p>
+                    <p>[14:38:45] INFO: Linker phase started...</p>
+                    {isRunning && <p className="animate-pulse text-blue-400">[14:40:12] INFO: Processing final IFWI image binary...</p>}
+                    {isCompleted && <p className="text-emerald-400 font-black">[14:55:00] SUCCESS: Build completed in 20.2 minutes.</p>}
+                  </div>
+               </div>
+            )}
+          </section>
+        </div>
+
+        {/* Footer Meta */}
+        <div className="shrink-0 py-2 border-t border-slate-100 flex items-center justify-between">
+           <div className="flex items-center gap-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">
+              <span>WORKFLOW: FW_AUTO_BUILD_V2</span>
+              <span className="opacity-40">•</span>
+              <span>NODE: BLD_SRV_04_REGION_EU</span>
+           </div>
+           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Compiler: INTEL_ONEAPI_2025.x</div>
         </div>
       </div>
     );
@@ -398,7 +669,7 @@ const App: React.FC = () => {
             )}
           </section>
 
-          {/* Heatmap Matrix Section (New) */}
+          {/* Heatmap Matrix Section */}
           {(!isPreSubmit && !isDiscovery && !isSubmission) && (
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
               <div 
@@ -578,42 +849,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Blocks */}
-        {isPreSubmit && (
-          <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex gap-4 animate-in slide-in-from-top-2 duration-300 shadow-sm">
-             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0 border border-blue-200 shadow-sm">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-             </div>
-             <div>
-                <h4 className="text-[11px] font-black text-blue-700 uppercase tracking-widest mb-1">Action Required: Pre-submission Review</h4>
-                <ul className="text-[11px] text-blue-600 space-y-0.5 font-medium list-disc list-inside">
-                   <li>Verify test suite logic and target environment readiness</li>
-                   <li>Check if specific silicon-stepping overrides are required</li>
-                </ul>
-             </div>
-          </div>
-        )}
-
-        {isReviewReq && (
-          <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-5 animate-in slide-in-from-top-2 duration-300 shadow-sm">
-             <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md ring-2 ring-white">
-                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </div>
-                <h4 className="text-[13px] font-black text-amber-800 uppercase tracking-widest">Result Resolution Required</h4>
-             </div>
-             <div className="flex flex-col gap-4">
-                <div className="flex gap-4">
-                   <button onClick={() => setResOutcome('PASSED')} className={`flex-1 py-3 px-4 rounded-lg border-2 font-black text-[12px] uppercase tracking-widest transition-all ${resOutcome === 'PASSED' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-emerald-200 hover:text-emerald-600'}`}>RESOLVE PASSED</button>
-                   <button onClick={() => setResOutcome('FAILED')} className={`flex-1 py-3 px-4 rounded-lg border-2 font-black text-[12px] uppercase tracking-widest transition-all ${resOutcome === 'FAILED' ? 'bg-rose-600 border-rose-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-400 hover:border-rose-200 hover:text-rose-600'}`}>RESOLVE FAILED</button>
-                </div>
-                <textarea value={resReason} onChange={(e) => setResReason(e.target.value)} placeholder="Triage justification..." className="w-full h-20 bg-white border border-slate-200 rounded-lg p-3 text-[12px] outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all resize-none shadow-inner" />
-                <button disabled={!resOutcome || !resReason.trim()} onClick={() => setCurrentTestPhase('COMPLETED')} className={`w-full py-3 rounded-lg font-black text-[11px] uppercase tracking-[0.2em] transition-all ${(!resOutcome || !resReason.trim()) ? 'bg-slate-100 text-slate-300 cursor-not-allowed border border-slate-200' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5'}`}>Finalize Resolution</button>
-             </div>
-          </div>
-        )}
-
-        {/* Dynamic content scrollable area */}
+        {/* Dynamic content area for TEST step */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
           {renderKPIStrip()}
           {renderTestSettings()}
