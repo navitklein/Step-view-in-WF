@@ -78,17 +78,19 @@ const App: React.FC = () => {
   const [isWorkflowSidebarCollapsed, setIsWorkflowSidebarCollapsed] = useState(false);
   const [isLifecyclePopoverOpen, setIsLifecyclePopoverOpen] = useState(false);
   
+  // Test view collapse state - Table expanded by default, others collapsed
   const [collapsedSections, setCollapsedSections] = useState({
-    settings: false,
+    settings: true,
     table: false,
-    heatmap: false
+    heatmap: true
   });
 
+  // Build view collapse state - All collapsed by default
   const [collapsedBuildSections, setCollapsedBuildSections] = useState({
-    settings: false,
-    deps: false,
-    knobs: false,
-    straps: false,
+    settings: true,
+    deps: true,
+    knobs: true,
+    straps: true,
     logs: true
   });
 
@@ -102,6 +104,26 @@ const App: React.FC = () => {
 
   const toggleBuildSection = (id: keyof typeof collapsedBuildSections) => {
     setCollapsedBuildSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleAllBuildSections = () => {
+    const areAllCollapsed = Object.values(collapsedBuildSections).every(v => v === true);
+    setCollapsedBuildSections({
+      settings: !areAllCollapsed,
+      deps: !areAllCollapsed,
+      knobs: !areAllCollapsed,
+      straps: !areAllCollapsed,
+      logs: !areAllCollapsed
+    });
+  };
+
+  const toggleAllTestSections = () => {
+    const areAllCollapsed = Object.values(collapsedSections).every(v => v === true);
+    setCollapsedSections({
+      settings: !areAllCollapsed,
+      table: !areAllCollapsed,
+      heatmap: !areAllCollapsed
+    });
   };
 
   useEffect(() => {
@@ -194,6 +216,8 @@ const App: React.FC = () => {
     const isCompleted = currentTestPhase === 'COMPLETED';
     const isRunning = currentTestPhase === 'RUNNING';
     const isUnifiedPatch = selectedStepId === 'step0';
+    const isSuccess = isCompleted && resOutcome === 'PASSED';
+    const areAllCollapsed = Object.values(collapsedBuildSections).every(v => v === true);
 
     let card1Bg = "bg-white";
     let card1TextColor = "text-slate-400";
@@ -231,13 +255,31 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">{title}</h1>
              <div className="h-4 w-[1px] bg-slate-200 mx-1" />
-             <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
-                Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
-             </button>
+             <div className="flex items-center gap-2">
+                <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
+                   Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <button onClick={toggleAllBuildSections} className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 uppercase tracking-widest transition-all flex items-center gap-1.5">
+                   {areAllCollapsed ? 'Expand All' : 'Collapse All'}
+                </button>
+             </div>
           </div>
-          <button className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-white uppercase tracking-widest bg-brand rounded-md hover:bg-brand shadow-sm transition-all">
-              <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD {isUnifiedPatch ? 'PATCH' : 'RELEASE'}
-          </button>
+          
+          <div className="flex gap-2">
+            {isSuccess && (
+              <>
+                <button className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-white uppercase tracking-widest bg-brand rounded-md hover:bg-brand/90 shadow-sm transition-all animate-in fade-in zoom-in-95 duration-300">
+                    <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD PACKAGE
+                </button>
+                <button 
+                  onClick={() => handleTabChange('Releases')}
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-[9px] font-black text-brand uppercase tracking-widest bg-white border border-brand rounded-md hover:bg-blue-50 transition-all animate-in fade-in zoom-in-95 duration-300"
+                >
+                    <ICONS.ExternalLink className="w-3.5 h-3.5" /> GO TO RELEASE VIEW
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
@@ -312,10 +354,25 @@ const App: React.FC = () => {
             </div>
             {!collapsedBuildSections.settings && (
                <div className="p-0">
-                  <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
-                    <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TARGET PLATFORM</span><span className="text-[12px] font-black text-slate-800">Arrow Lake-H</span></div>
-                    <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH FORMAT' : 'BUILD ARCHITECTURE'}</span><span className="text-[12px] font-black text-slate-800">{isUnifiedPatch ? 'Unified-v2' : 'x86-64'}</span></div>
-                  </div>
+                  {isUnifiedPatch ? (
+                    <div className="grid grid-cols-2 divide-x divide-slate-100">
+                      <div className="flex flex-col">
+                         <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON</span><span className="text-[12px] font-black text-slate-800">DMR-AP</span></div>
+                         <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STEP</span><span className="text-[12px] font-black text-slate-800">AO</span></div>
+                         <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC SIGNING</span><span className="text-[12px] font-black text-slate-400 italic">None</span></div>
+                      </div>
+                      <div className="flex flex-col">
+                         <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT1 SIGNING</span><span className="text-[11px] font-black text-emerald-600 px-1.5 py-0.5 bg-emerald-50 rounded">ENABLED</span></div>
+                         <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SOC ENCRYPTION</span><span className="text-[11px] font-black text-emerald-600 px-1.5 py-0.5 bg-emerald-50 rounded">ENABLED</span></div>
+                         <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT ENCRYPTION</span><span className="text-[11px] font-black text-emerald-600 px-1.5 py-0.5 bg-emerald-50 rounded">ENABLED</span></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+                      <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON / PLATFORM</span><span className="text-[12px] font-black text-slate-800">DMR-AP / Arrow Lake-H</span></div>
+                      <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STEP</span><span className="text-[12px] font-black text-slate-800">AO</span></div>
+                    </div>
+                  )}
                </div>
             )}
           </section>
@@ -376,6 +433,7 @@ const App: React.FC = () => {
     const isRunning = currentTestPhase === 'RUNNING';
     const isReviewReq = currentTestPhase === 'REVIEW_REQUIRED';
     const isCompleted = currentTestPhase === 'COMPLETED';
+    const areAllCollapsed = Object.values(collapsedSections).every(v => v === true);
 
     const currentPhaseIndex = TEST_PHASES.findIndex(p => p.id === currentTestPhase);
     const activePhaseObj = TEST_PHASES[currentPhaseIndex] || TEST_PHASES[0];
@@ -435,9 +493,19 @@ const App: React.FC = () => {
           </div>
           {!collapsedSections.settings && (
             <div className="p-0">
-              <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
-                <div className="flex items-center justify-between px-6 py-4"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PLATFORM</span><span className="text-[12px] font-black text-slate-800">Meteor Lake-S</span></div>
-                <div className="flex items-center justify-between px-6 py-4"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">BUILD TYPE</span><span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] font-black uppercase tracking-widest ring-1 ring-blue-100 shadow-sm">RELEASE</span></div>
+              <div className="grid grid-cols-2 divide-x divide-slate-100">
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON</span><span className="text-[12px] font-black text-slate-800">DMR-AP</span></div>
+                  <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STEP</span><span className="text-[12px] font-black text-slate-800">AO</span></div>
+                  <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NGA PROJECT</span><span className="text-[12px] font-black text-brand mono">VDC_QA</span></div>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NGA ENVIRONMENT</span><span className="text-[11px] font-black text-slate-800 px-1.5 py-0.5 bg-slate-100 rounded">PRODUCTION</span></div>
+                  <div className="flex flex-col px-6 py-3">
+                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">TEST SUITE</span>
+                     <span className="text-[10px] font-black text-slate-800 mono bg-slate-50 px-2 py-1 border border-slate-100 rounded">VDC_QA_TestSuite_20_06_23_5</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -541,9 +609,14 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">TEST step execution</h1>
              <div className="h-4 w-[1px] bg-slate-200 mx-1" />
-             <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
-                Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
-             </button>
+             <div className="flex items-center gap-2">
+                <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
+                   Cycle State <ICONS.ChevronRight className="w-2 h-2 transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <button onClick={toggleAllTestSections} className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded text-[9px] font-black text-slate-400 uppercase tracking-widest transition-all flex items-center gap-1.5">
+                   {areAllCollapsed ? 'Expand All' : 'Collapse All'}
+                </button>
+             </div>
           </div>
         </div>
 
