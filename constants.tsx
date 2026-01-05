@@ -25,14 +25,31 @@ export interface Knob {
   isOverridden?: boolean;
 }
 
-export const MOCK_KNOBS: Knob[] = [
-  { id: 'k1', name: 'DfxDcsRxDfeGainCoefficient', path: 'Socket Configuration/Memory Configuration/Memory Dfx Configuration/DCS RX DFE Gain Coefficient', displayValue: '1: +6 dB', rawValue: '0x1', status: 'active', isOverridden: true },
-  { id: 'k2', name: 'PchPcieRootPortMaxPayloadSizeSupportedExceeding...', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port Configuration/Advanced Error Reporting/Ca...', displayValue: '256 Bytes', rawValue: '0x1', status: 'active', isOverridden: true },
-  { id: 'k3', name: 'PcieRootPort0L1Substates', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 0', displayValue: 'L1.1', rawValue: '0x1', status: 'active', isOverridden: true },
-  { id: 'k4', name: 'PcieRootPort0Speed', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 0', displayValue: 'Auto', rawValue: '0x0', status: 'active', isOverridden: true },
-  { id: 'k5', name: 'PcieRootPort1Aspm', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 1', displayValue: 'Enabled', rawValue: '0x1', status: 'active', isOverridden: true },
-  { id: 'k6', name: 'PcieRootPort1L1Substates', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 1', displayValue: 'L1.1', rawValue: '0x1', status: 'active', isOverridden: true },
-];
+// Generating a larger set of knobs to demonstrate pagination and filtering
+const generateKnobs = (): Knob[] => {
+  const overridden: Knob[] = [
+    { id: 'k1', name: 'DfxDcsRxDfeGainCoefficient', path: 'Socket Configuration/Memory Configuration/Memory Dfx Configuration/DCS RX DFE Gain Coefficient', displayValue: '1: +6 dB', rawValue: '0x1', status: 'active', isOverridden: true },
+    { id: 'k2', name: 'PchPcieRootPortMaxPayloadSizeSupportedExceeding...', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port Configuration/Advanced Error Reporting/Ca...', displayValue: '256 Bytes', rawValue: '0x1', status: 'active', isOverridden: true },
+    { id: 'k3', name: 'PcieRootPort0L1Substates', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 0', displayValue: 'L1.1', rawValue: '0x1', status: 'active', isOverridden: true },
+    { id: 'k4', name: 'PcieRootPort0Speed', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 0', displayValue: 'Auto', rawValue: '0x0', status: 'active', isOverridden: true },
+    { id: 'k5', name: 'PcieRootPort1Aspm', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 1', displayValue: 'Enabled', rawValue: '0x1', status: 'active', isOverridden: true },
+    { id: 'k6', name: 'PcieRootPort1L1Substates', path: 'Socket Configuration/PCH Configuration/PCI Express/Root Port 1', displayValue: 'L1.1', rawValue: '0x1', status: 'active', isOverridden: true },
+  ];
+
+  const others: Knob[] = Array.from({ length: 94 }, (_, i) => ({
+    id: `k-gen-${i}`,
+    name: `Standard_Knob_Config_${i + 7}`,
+    path: `Platform/General/Configuration/System/Params/Set_${i}`,
+    displayValue: 'Default',
+    rawValue: '0x0',
+    status: 'active',
+    isOverridden: false
+  }));
+
+  return [...overridden, ...others];
+};
+
+export const MOCK_KNOBS: Knob[] = generateKnobs();
 
 export const MOCK_STRAPS = [
   { key: 'STRAP_PCIE_GEN_SEL', value: '0x3' },

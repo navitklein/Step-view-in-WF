@@ -78,6 +78,12 @@ const App: React.FC = () => {
   const [isWorkflowSidebarCollapsed, setIsWorkflowSidebarCollapsed] = useState(false);
   const [isLifecyclePopoverOpen, setIsLifecyclePopoverOpen] = useState(false);
   
+  // Filtering states
+  const [showAllDeps, setShowAllDeps] = useState(false);
+  const [showAllKnobs, setShowAllKnobs] = useState(false);
+  const [knobsPage, setKnobsPage] = useState(0);
+  const KNOBS_PAGE_SIZE = 10;
+  
   const [collapsedSections, setCollapsedSections] = useState({
     settings: true,
     table: false,
@@ -95,6 +101,7 @@ const App: React.FC = () => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const [resOutcome, setResOutcome] = useState<'PASSED' | 'FAILED' | null>(null);
   const [executionProgress, setExecutionProgress] = useState(45);
+  const [resolutionReason, setResolutionReason] = useState('');
 
   const toggleSection = (id: keyof typeof collapsedSections) => {
     setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -235,14 +242,35 @@ const App: React.FC = () => {
 
     const title = isUnifiedPatch ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION";
 
+    // Dependencies Calculation
+    const totalDeps = MOCK_BUILD_DEPS.length;
+    const changedDepsCount = MOCK_BUILD_DEPS.filter(d => d.isModified).length;
+    const depsValue = `${changedDepsCount}/${totalDeps}`;
+
+    // Knobs Calculation
+    const totalKnobsCount = MOCK_KNOBS.length;
+    const overriddenKnobsCount = MOCK_KNOBS.filter(k => k.isOverridden).length;
+    const knobsValue = `${overriddenKnobsCount}/${totalKnobsCount}`;
+
     const stats = [
-      { label: 'Dep. Changes', val: isUnifiedPatch ? '12' : '4', color: 'blue' },
+      { label: 'Dep. Changes', val: depsValue, color: 'blue' },
     ];
     if (!isUnifiedPatch) {
-      stats.push({ label: 'Knob Overrides', val: String(MOCK_KNOBS.length), color: 'amber' });
+      stats.push({ label: 'Knob Overrides', val: knobsValue, color: 'amber' });
       stats.push({ label: 'Strap Overrides', val: String(MOCK_STRAPS.length), color: 'purple' });
     }
     stats.push({ label: 'Package Size', val: isUnifiedPatch ? '4KB' : '32MB', color: 'slate' });
+
+    const displayedDeps = showAllDeps 
+      ? MOCK_BUILD_DEPS 
+      : MOCK_BUILD_DEPS.filter(d => d.isModified);
+
+    const filteredKnobs = showAllKnobs
+      ? MOCK_KNOBS
+      : MOCK_KNOBS.filter(k => k.isOverridden);
+
+    const paginatedKnobs = filteredKnobs.slice(knobsPage * KNOBS_PAGE_SIZE, (knobsPage + 1) * KNOBS_PAGE_SIZE);
+    const totalKnobsPages = Math.ceil(filteredKnobs.length / KNOBS_PAGE_SIZE);
 
     return (
       <div className="flex flex-col space-y-4 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden">
@@ -374,21 +402,41 @@ const App: React.FC = () => {
 
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-[#CD519D] rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span></div>
-              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-3 bg-[#CD519D] rounded-full" />
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
+                <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono">{displayedDeps.length}/{totalDeps}</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowAllDeps(!showAllDeps); }} 
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded shadow-sm text-[9px] font-black text-slate-500 hover:text-brand hover:border-brand transition-all uppercase tracking-widest"
+                >
+                  <ICONS.Filter className="w-3 h-3" />
+                  {showAllDeps ? 'Show Changes Only' : 'Show All Dependencies'}
+                </button>
+                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
+              </div>
             </div>
             {!collapsedBuildSections.deps && (
-               <div className="overflow-x-auto">
+               <div className="overflow-x-auto animate-in fade-in duration-300">
                  <table className="w-full text-left text-[11px] border-collapse">
                    <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                     <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th></tr>
+                     <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th><th className="px-6 py-3 text-right">Status</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50">
-                      {MOCK_BUILD_DEPS.slice(0, 5).map((dep, i) => (
+                      {displayedDeps.map((dep, i) => (
                         <tr key={i} className="hover:bg-slate-50/50">
                           <td className="px-6 py-2.5 font-bold text-slate-700">Ingredient_{dep.id}</td>
                           <td className="px-6 py-2.5 mono text-slate-400">{dep.version}</td>
                           <td className="px-6 py-2.5 mono text-brand font-bold">v25.1.0</td>
+                          <td className="px-6 py-2.5 text-right">
+                             {dep.isModified ? (
+                               <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase">Modified</span>
+                             ) : (
+                               <span className="px-2 py-0.5 text-slate-300 text-[9px] font-black uppercase">Unchanged</span>
+                             )}
+                          </td>
                         </tr>
                       ))}
                    </tbody>
@@ -400,33 +448,72 @@ const App: React.FC = () => {
           {!isUnifiedPatch && (
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-300">
               <div onClick={() => toggleBuildSection('knobs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-3"><div className="w-1 h-3 bg-blue-600 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">KNOBS OVERRIDES ({MOCK_KNOBS.length})</span></div>
-                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.knobs ? '' : 'rotate-90'}`} />
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-3 bg-blue-600 rounded-full" />
+                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">KNOBS OVERRIDES ({filteredKnobs.length}/{totalKnobsCount})</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowAllKnobs(!showAllKnobs); setKnobsPage(0); }} 
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded shadow-sm text-[9px] font-black text-slate-500 hover:text-brand hover:border-brand transition-all uppercase tracking-widest"
+                  >
+                    <ICONS.Filter className="w-3 h-3" />
+                    {showAllKnobs ? 'Show Overridden Only' : 'Show All Knobs'}
+                  </button>
+                  <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.knobs ? '' : 'rotate-90'}`} />
+                </div>
               </div>
               {!collapsedBuildSections.knobs && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
-                      <tr>
-                        <th className="px-6 py-3">Knob Name</th>
-                        <th className="px-6 py-3">Full Path</th>
-                        <th className="px-6 py-3 text-right">Value</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {MOCK_KNOBS.map((knob) => (
-                        <tr key={knob.id} className="hover:bg-slate-50/50 group transition-colors">
-                          <td className="px-6 py-3 text-[11px] font-black text-slate-800">{knob.name}</td>
-                          <td className="px-6 py-3 text-[10px] text-slate-400 font-medium max-w-md truncate">{knob.path}</td>
-                          <td className="px-6 py-3 text-right">
-                             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white text-brand rounded-full text-[10px] font-black tracking-tight border border-blue-200 shadow-[0_1px_4px_rgba(15,108,189,0.05)] ring-1 ring-blue-50">
-                               {knob.displayValue} <span className="opacity-50 font-bold mono">({knob.rawValue})</span>
-                             </span>
-                          </td>
+                <div className="overflow-hidden flex flex-col">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
+                        <tr>
+                          <th className="px-6 py-3">Knob Name</th>
+                          <th className="px-6 py-3">Full Path</th>
+                          <th className="px-6 py-3 text-right">Value</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {paginatedKnobs.map((knob) => (
+                          <tr key={knob.id} className={`hover:bg-slate-50/50 group transition-colors ${knob.isOverridden ? 'bg-blue-50/10' : ''}`}>
+                            <td className="px-6 py-3 text-[11px] font-black text-slate-800 flex items-center gap-2">
+                              {knob.name}
+                              {knob.isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" title="Overridden" />}
+                            </td>
+                            <td className="px-6 py-3 text-[10px] text-slate-400 font-medium max-w-md truncate">{knob.path}</td>
+                            <td className="px-6 py-3 text-right">
+                               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-tight border shadow-sm ${knob.isOverridden ? 'bg-white text-brand border-blue-200 ring-1 ring-blue-50' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                 {knob.displayValue} <span className="opacity-50 font-bold mono">({knob.rawValue})</span>
+                               </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Pagination Controls */}
+                  {totalKnobsPages > 1 && (
+                    <div className="px-6 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page {knobsPage + 1} of {totalKnobsPages}</span>
+                       <div className="flex items-center gap-2">
+                          <button 
+                            disabled={knobsPage === 0}
+                            onClick={() => setKnobsPage(p => Math.max(0, p - 1))}
+                            className="p-1 rounded hover:bg-white border border-transparent hover:border-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          >
+                             <svg className="w-4 h-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                          </button>
+                          <button 
+                            disabled={knobsPage >= totalKnobsPages - 1}
+                            onClick={() => setKnobsPage(p => Math.min(totalKnobsPages - 1, p + 1))}
+                            className="p-1 rounded hover:bg-white border border-transparent hover:border-slate-200 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          >
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                          </button>
+                       </div>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -584,7 +671,7 @@ const App: React.FC = () => {
     }
 
     const renderTestSettings = () => {
-      if (isDiscovery || isSubmission) return null;
+      // Removed the 'if (isDiscovery || isSubmission) return null' guard to ensure panel is visible in all states
       return (
         <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
           <div onClick={() => toggleSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
@@ -666,14 +753,14 @@ const App: React.FC = () => {
                   <tbody className="divide-y divide-slate-50">
                     {[...Array(41)].map((_, i) => {
                       const states = ['PASSED', 'FAILED', 'RUNNING', 'PENDING'];
-                      let status = isPreSubmit ? 'PENDING' : states[i % 4];
+                      let status = isPreSubmit ? (i % 8 === 0 ? 'EXCLUDED' : 'INCLUDED') : states[i % 4];
                       if (isCompleted) status = resOutcome || 'PASSED';
                       return (
                         <tr key={i} className="hover:bg-blue-50/20 group transition-colors">
                           <td className="px-6 py-2.5 font-bold text-slate-700">GNR_CI_Prod_Cycle_{1024 + i}</td>
                           <td className="px-6 py-2.5">
-                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase ring-1 ring-inset ${status === 'PASSED' ? 'bg-emerald-50 text-emerald-600 ring-emerald-100' : status === 'FAILED' ? 'bg-rose-50 text-rose-600 ring-rose-100' : status === 'RUNNING' ? 'bg-blue-50 text-blue-600 ring-blue-100 animate-pulse' : 'bg-slate-50 text-slate-400 ring-slate-100'}`}>
-                               <div className={`w-1 h-1 rounded-full ${status === 'PASSED' ? 'bg-emerald-500' : status === 'FAILED' ? 'bg-rose-500' : status === 'RUNNING' ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-black uppercase ring-1 ring-inset ${status === 'PASSED' || status === 'INCLUDED' ? 'bg-emerald-50 text-emerald-600 ring-emerald-100' : status === 'FAILED' || status === 'EXCLUDED' ? 'bg-rose-50 text-rose-600 ring-rose-100' : status === 'RUNNING' ? 'bg-blue-50 text-blue-600 ring-blue-100 animate-pulse' : 'bg-slate-50 text-slate-400 ring-slate-100'}`}>
+                               <div className={`w-1 h-1 rounded-full ${status === 'PASSED' || status === 'INCLUDED' ? 'bg-emerald-500' : status === 'FAILED' || status === 'EXCLUDED' ? 'bg-rose-500' : status === 'RUNNING' ? 'bg-blue-500' : 'bg-slate-300'}`} />
                                {status}
                              </span>
                           </td>
@@ -731,6 +818,47 @@ const App: React.FC = () => {
                   </button>
                 )}
              </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isPreSubmit && (
+              <>
+                <button className="px-4 py-1.5 text-[9px] font-black text-rose-600 border border-rose-200 hover:bg-rose-50 rounded-md uppercase tracking-widest transition-all">
+                  ABORT STEP
+                </button>
+                <button className="px-4 py-1.5 text-[9px] font-black text-white bg-brand hover:bg-brand/90 rounded-md uppercase tracking-widest shadow-sm transition-all">
+                  SUBMIT TO NGA
+                </button>
+              </>
+            )}
+            {isRunning && (
+              <button className="px-4 py-1.5 text-[9px] font-black text-rose-600 border border-rose-200 hover:bg-rose-50 rounded-md uppercase tracking-widest transition-all">
+                ABORT STEP
+              </button>
+            )}
+            {isReviewReq && (
+              <div className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-300">
+                <input 
+                  type="text" 
+                  value={resolutionReason}
+                  onChange={(e) => setResolutionReason(e.target.value)}
+                  placeholder="Resolution reason..."
+                  className="w-48 h-8 bg-white border border-slate-200 rounded-md px-3 text-[10px] outline-none focus:ring-1 focus:ring-brand focus:border-brand"
+                />
+                <button 
+                  onClick={() => {setResOutcome('FAILED'); setCurrentTestPhase('COMPLETED')}}
+                  className="px-4 py-1.5 text-[9px] font-black text-white bg-rose-600 hover:bg-rose-700 rounded-md uppercase tracking-widest shadow-sm transition-all"
+                >
+                  FAIL STEP
+                </button>
+                <button 
+                  onClick={() => {setResOutcome('PASSED'); setCurrentTestPhase('COMPLETED')}}
+                  className="px-4 py-1.5 text-[9px] font-black text-white bg-emerald-600 hover:bg-emerald-700 rounded-md uppercase tracking-widest shadow-sm transition-all"
+                >
+                  PASS STEP
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -806,6 +934,23 @@ const App: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
           {renderKPIStrip()}
+          
+          {isPreSubmit && (
+            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex items-start gap-4 animate-in fade-in slide-in-from-top-1 duration-500">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0 text-blue-600">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div className="space-y-1.5">
+                <h4 className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Review Guidance</h4>
+                <ul className="text-[11px] text-slate-600 font-medium space-y-0.5">
+                  <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-blue-400" /> Review each test's configuration and properties</li>
+                  <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-blue-400" /> Click on test rows to edit execution settings in the side panel</li>
+                  <li className="flex items-center gap-2"><div className="w-1 h-1 rounded-full bg-blue-400" /> Click the 'Included'/'Excluded' badge to toggle a test for execution</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
           {renderTestSettings()}
           {renderMainContentArea()}
         </div>
