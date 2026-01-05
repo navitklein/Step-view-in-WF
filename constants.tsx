@@ -98,7 +98,6 @@ export const MOCK_BUILD_DEPS: Release[] = [
   { id: 'R010', version: 'v16.0.0', changedDeps: '0/0', releasedBy: 'System', releasedDate: '3m ago', releasedWW: 'WW22.4', isModified: false },
 ];
 
-// Added workflow interfaces and MOCK_WORKFLOW to fix errors in App.tsx
 export interface WorkflowStep {
   id: string;
   name: string;
@@ -114,6 +113,15 @@ export interface WorkflowStage {
 }
 
 export const MOCK_WORKFLOW: WorkflowStage[] = [
+  {
+    id: 'stage0',
+    name: 'Patch Gen',
+    status: 'Success',
+    progress: 100,
+    steps: [
+      { id: 'step0', name: 'Unified patch', status: 'Success' },
+    ],
+  },
   {
     id: 'stage1',
     name: 'IFWI Build',
