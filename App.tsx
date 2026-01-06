@@ -8,6 +8,59 @@ import Header from './components/Header';
 
 type TestStepPhaseId = 'DISCOVERY' | 'PRE_SUBMIT' | 'SUBMISSION' | 'RUNNING' | 'REVIEW_REQUIRED' | 'COMPLETED';
 
+interface TestPhase {
+  id: TestStepPhaseId;
+  label: string;
+  icon: React.ReactNode;
+  requiresAction: boolean;
+  description: string;
+}
+
+const TEST_PHASES: TestPhase[] = [
+  { 
+    id: 'DISCOVERY', 
+    label: 'Discovery', 
+    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>, 
+    requiresAction: false,
+    description: 'Scanning environment and gathering test artifacts.'
+  },
+  { 
+    id: 'PRE_SUBMIT', 
+    label: 'Review', 
+    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, 
+    requiresAction: true,
+    description: 'Human confirmation of the test suite configuration.'
+  },
+  { 
+    id: 'SUBMISSION', 
+    label: 'Submission', 
+    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, 
+    requiresAction: false,
+    description: 'Dispatching payloads to the NGA orchestrator.'
+  },
+  { 
+    id: 'RUNNING', 
+    label: 'Execution', 
+    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, 
+    requiresAction: false,
+    description: 'Tests are live and running on physical silicon.'
+  },
+  { 
+    id: 'REVIEW_REQUIRED', 
+    label: 'Result', 
+    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, 
+    requiresAction: true,
+    description: 'Analyzing logs and providing final pass/fail resolution.'
+  },
+  { 
+    id: 'COMPLETED', 
+    label: 'Done', 
+    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>, 
+    requiresAction: false,
+    description: 'Step successfully completed and artifacts archived.'
+  }
+];
+
 const App: React.FC = () => {
   const [nav, setNav] = useState<NavigationContext>({
     activeContext: AppContextType.PROJECT,
@@ -29,7 +82,7 @@ const App: React.FC = () => {
     return nav.history[currentKey]?.activeTabId || 'Dashboard';
   }, [nav.activeContext, nav.activeProjectId, nav.history]);
 
-  const [selectedStepId, setSelectedStepId] = useState<string>('step1');
+  const [selectedStepId, setSelectedStepId] = useState<string>('step2');
   const [currentTestPhase, setCurrentTestPhase] = useState<TestStepPhaseId>('RUNNING');
   const [isWorkflowSidebarCollapsed, setIsWorkflowSidebarCollapsed] = useState(false);
   
@@ -50,13 +103,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let interval: any;
-    if (currentTestPhase === 'RUNNING' && (selectedStepId === 'step1' || selectedStepId === 'step0')) {
+    if (currentTestPhase === 'RUNNING') {
       interval = setInterval(() => {
         setBuildSeconds(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [currentTestPhase, selectedStepId]);
+  }, [currentTestPhase]);
 
   const formatSeconds = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -74,23 +127,184 @@ const App: React.FC = () => {
   }, [nav.activeContext, nav.activeProjectId]);
 
   const cycleDemoPhase = () => {
-    if (selectedStepId === 'step1' || selectedStepId === 'step0') {
-      if (currentTestPhase === 'RUNNING') {
-        setCurrentTestPhase('COMPLETED');
-        setResOutcome('PASSED');
-      } else if (currentTestPhase === 'COMPLETED' && resOutcome === 'PASSED') {
-        setCurrentTestPhase('COMPLETED');
-        setResOutcome('FAILED');
-      } else {
-        setCurrentTestPhase('RUNNING');
-        setResOutcome(null);
-        setBuildSeconds(1214);
-      }
+    if (currentTestPhase === 'RUNNING') {
+      setCurrentTestPhase('COMPLETED');
+      setResOutcome('PASSED');
+    } else if (currentTestPhase === 'COMPLETED' && resOutcome === 'PASSED') {
+      setCurrentTestPhase('COMPLETED');
+      setResOutcome('FAILED');
+    } else {
+      setCurrentTestPhase('RUNNING');
+      setResOutcome(null);
+      setBuildSeconds(1214);
     }
   };
 
   const toggleBuildSection = (id: keyof typeof collapsedBuildSections) => {
     setCollapsedBuildSections(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const renderTestStepView = () => {
+    const isRunning = currentTestPhase === 'RUNNING';
+    const isCompleted = currentTestPhase === 'COMPLETED';
+    const isSuccess = isCompleted && resOutcome === 'PASSED';
+    const isFailed = isCompleted && resOutcome === 'FAILED';
+
+    return (
+      <div className="flex flex-col space-y-4 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden relative">
+        <div className="flex items-center justify-between shrink-0 mb-1">
+          <div className="flex items-center gap-4">
+             <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">VAL_DMR_AO_POWER_ON</h1>
+             <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+             <div className="flex items-center gap-2">
+                <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
+                   Cycle State <ICONS.ChevronRight className="w-2 h-2 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+             </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0">
+          <div className={`bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[115px] relative overflow-hidden transition-all duration-500 ${isSuccess ? 'bg-emerald-50/20 border-emerald-200' : isFailed ? 'bg-rose-50/20 border-rose-200' : ''}`}>
+             <div className="p-4 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-2">
+                   <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ring-1 ring-inset ${isRunning ? 'bg-blue-50 text-blue-600 ring-blue-100 animate-pulse' : isSuccess ? 'bg-emerald-100 text-emerald-700 ring-emerald-200' : 'bg-rose-100 text-rose-700 ring-rose-200'}`}>
+                         {isRunning ? 'EXECUTING TESTS' : isSuccess ? 'VALIDATION SUCCESS' : 'VALIDATION FAILURE'}
+                      </span>
+                   </div>
+                   <div className="flex items-center gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <span>Total: 450</span>
+                      <span className="text-emerald-600">Pass: 442</span>
+                      <span className="text-rose-600">Fail: 8</span>
+                   </div>
+                </div>
+
+                <div className="flex-1 flex items-center justify-between min-h-0">
+                   <div className="flex flex-col">
+                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">HEALTH SCORE</span>
+                      <div className="flex items-baseline gap-2">
+                         <span className={`text-2xl font-black tracking-tighter ${isSuccess ? 'text-emerald-700' : isFailed ? 'text-rose-700' : 'text-slate-900'}`}>
+                            {isRunning ? '98.2%' : isSuccess ? '100%' : '94.5%'}
+                         </span>
+                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Post-Silicon Stability</span>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-end">
+                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">POOL OCCUPANCY</span>
+                         <span className="text-[11px] font-black text-slate-800">12/15 SUTs</span>
+                      </div>
+                   </div>
+                </div>
+             </div>
+             <div className="h-1.5 w-full bg-slate-50 mt-auto border-t overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-1000 ease-out ${isSuccess ? 'bg-emerald-500 w-full' : isFailed ? 'bg-rose-500 w-full' : 'bg-blue-500 animate-indeterminate-progress'}`} 
+                  style={!isRunning && !isCompleted ? { width: '0%' } : isRunning ? {} : { width: '100%' }}
+                />
+             </div>
+          </div>
+
+          <div className="bg-white p-4 py-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-[115px] relative overflow-hidden group hover:border-slate-300 transition-colors">
+             <div className="flex flex-col items-center flex-1 justify-center">
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Wall Clock Time</span>
+                <span className={`text-[24px] font-black mono tracking-tight leading-none tabular-nums ${isRunning ? 'text-slate-800' : isSuccess ? 'text-emerald-700' : 'text-rose-700'}`}>
+                   {formatSeconds(buildSeconds)}
+                </span>
+             </div>
+             <div className="flex items-center justify-between border-t border-slate-100 pt-2 pb-0.5 shrink-0">
+                <div className="flex items-center gap-4">
+                   <div className="flex flex-col">
+                      <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Vcc Value</span>
+                      <span className="text-[10px] font-bold text-slate-600 leading-none mono tracking-tighter">0.854V</span>
+                   </div>
+                   <div className="flex flex-col">
+                      <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">T-Junction</span>
+                      <span className="text-[10px] font-bold text-slate-600 leading-none mono tracking-tighter">42.5°C</span>
+                   </div>
+                </div>
+                <div className="flex flex-col items-end">
+                   <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Pool Location</span>
+                   <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">IDC_LAB_E04</span>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-3 bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
+           {TEST_PHASES.map((phase, idx) => {
+             const phaseOrder = ['DISCOVERY', 'PRE_SUBMIT', 'SUBMISSION', 'RUNNING', 'REVIEW_REQUIRED', 'COMPLETED'];
+             const currentIdx = phaseOrder.indexOf(currentTestPhase);
+             const thisIdx = phaseOrder.indexOf(phase.id);
+             const isPassed = thisIdx < currentIdx;
+             const isCurrent = thisIdx === currentIdx;
+             
+             return (
+               <React.Fragment key={phase.id}>
+                 <div className="flex flex-col items-center gap-1 group cursor-help">
+                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isPassed ? 'bg-emerald-500 border-emerald-500 text-white' : isCurrent ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-slate-50 border-slate-200 text-slate-300'}`}>
+                       <div className="w-4 h-4">{phase.icon}</div>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${isPassed ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-slate-400'}`}>{phase.label}</span>
+                 </div>
+                 {idx < TEST_PHASES.length - 1 && (
+                   <div className={`flex-1 h-0.5 mx-2 rounded-full ${isPassed ? 'bg-emerald-500' : 'bg-slate-100'}`} />
+                 )}
+               </React.Fragment>
+             );
+           })}
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar scroll-smooth">
+           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 shrink-0">
+                 <div className="flex items-center gap-3">
+                    <div className="w-1 h-3 bg-brand rounded-full" />
+                    <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">EXECUTING TEST CASES</span>
+                    <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono tracking-tighter">LIVE MONITOR</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <button className="px-3 py-1 bg-white border border-slate-200 rounded text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 hover:text-brand transition-all shadow-sm">
+                       <ICONS.Filter className="w-3 h-3" /> FAILED ONLY
+                    </button>
+                 </div>
+              </div>
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left text-[11px] border-collapse">
+                   <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">
+                     <tr>
+                        <th className="px-6 py-3">Case ID</th>
+                        <th className="px-6 py-3">Module</th>
+                        <th className="px-6 py-3">Cycle</th>
+                        <th className="px-6 py-3 text-right">Outcome</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-50">
+                      {[1,2,3,4,5,6,7,8].map(i => (
+                        <tr key={i} className="hover:bg-slate-50/50 group">
+                          <td className="px-6 py-2.5 font-bold text-slate-700 mono">VAL_PMC_PWR_CYCLE_00{i}</td>
+                          <td className="px-6 py-2.5 text-slate-500">PowerManagement</td>
+                          <td className="px-6 py-2.5 tabular-nums text-slate-400">Iter {i}/100</td>
+                          <td className="px-6 py-2.5 text-right">
+                             <div className="flex items-center justify-end gap-2">
+                                <span className={`text-[9px] font-black uppercase tracking-tighter ${i % 3 === 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                   {i % 3 === 0 ? 'FAILED' : 'PASSED'}
+                                </span>
+                                <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-400 transition-all">
+                                   <ICONS.ExternalLink className="w-3 h-3" />
+                                </button>
+                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                 </table>
+              </div>
+           </section>
+        </div>
+      </div>
+    );
   };
 
   const renderQuickBuildStepView = () => {
@@ -122,16 +336,23 @@ const App: React.FC = () => {
                 </button>
              </div>
           </div>
+          
+          {/* Main CTAs in Title Row - Only visible when build finish successfully */}
+          {isSuccess && (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-300">
+               <button className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">
+                  <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD PACKAGE
+               </button>
+               <button onClick={() => handleTabChange('Releases')} className="flex items-center gap-2 px-4 py-1.5 bg-brand text-white rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">
+                  <ICONS.ExternalLink className="w-3.5 h-3.5" /> GO TO RELEASE
+               </button>
+            </div>
+          )}
         </div>
 
-        {/* 2-Column High Density Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0">
-          
-          {/* Main Summary Card (Pivot between Flow and Result) */}
           <div className={`bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[115px] relative overflow-hidden transition-all duration-500 ${isSuccess ? 'bg-emerald-50/20 border-emerald-200' : isFailed ? 'bg-rose-50/20 border-rose-200' : ''}`}>
-             
              {isCompleted ? (
-               /* FINISHED STATE: Result Certificate Focus */
                <div className="flex flex-col h-full p-4 animate-in zoom-in-95 duration-500">
                   <div className="flex items-center justify-between mb-1 shrink-0">
                      <div className="flex items-center gap-2">
@@ -140,17 +361,17 @@ const App: React.FC = () => {
                         </span>
                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest bg-white/50 px-1.5 py-0.5 rounded border border-slate-100">RELEASE ID: 1166</span>
                      </div>
-                     <div className="flex items-center gap-1.5">
-                        <button onClick={() => handleTabChange('Releases')} className={`flex items-center gap-1.5 px-2 py-1 text-[8px] font-black uppercase tracking-widest bg-white rounded border transition-all ${isSuccess ? 'text-emerald-700 border-emerald-200 hover:bg-emerald-50' : 'text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
-                           <ICONS.ExternalLink className="w-2.5 h-2.5" /> VIEW RELEASE
+                     {/* Result Icon Actions Cluster - All icons now */}
+                     <div className="flex items-center gap-1">
+                        <button onClick={() => handleTabChange('Releases')} className="p-1.5 hover:bg-white/80 rounded text-slate-400 hover:text-slate-600 transition-colors" title="View Release">
+                           <ICONS.ExternalLink className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => setIsFavorite(!isFavorite)} className="p-1 hover:bg-white/80 rounded transition-colors ml-1">
+                        <button onClick={() => setIsFavorite(!isFavorite)} className="p-1.5 hover:bg-white/80 rounded transition-colors" title="Favorite Build">
                            <svg className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.382-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
                         </button>
-                        <button className="p-1 hover:bg-white/80 rounded text-slate-400 hover:text-slate-600 transition-colors"><ICONS.Download className="w-3.5 h-3.5" /></button>
+                        <button className="p-1.5 hover:bg-white/80 rounded text-slate-400 hover:text-slate-600 transition-colors" title="Download Artifacts"><ICONS.Download className="w-3.5 h-3.5" /></button>
                      </div>
                   </div>
-
                   <div className="flex flex-1 items-center justify-between min-h-0">
                      <div className="flex flex-col">
                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">TARGET ARTIFACT</span>
@@ -169,7 +390,6 @@ const App: React.FC = () => {
                   </div>
                </div>
              ) : (
-               /* RUNNING STATE: Transformation Focus */
                <div className="p-3 pb-1 flex flex-col flex-1">
                  <div className="flex items-center justify-between mb-2">
                    <div className="flex items-center gap-2">
@@ -183,7 +403,6 @@ const App: React.FC = () => {
                       </span>
                    </div>
                  </div>
-
                  <div className="flex items-center gap-8 flex-1">
                     <div className="flex-1 flex flex-col justify-center min-w-0">
                        <span className="text-[7px] font-black text-slate-400 uppercase mb-0.5 tracking-widest">FROM: BASELINE</span>
@@ -207,8 +426,6 @@ const App: React.FC = () => {
                  </div>
                </div>
              )}
-
-             {/* Footer: Dynamic Progress Bar */}
              <div className={`h-1.5 w-full bg-slate-50 mt-auto border-t overflow-hidden ${isCompleted ? 'border-transparent' : 'border-slate-100'}`}>
                 <div 
                   className={`h-full transition-all duration-1000 ease-out ${isSuccess ? 'bg-emerald-500 w-full' : isFailed ? 'bg-rose-500 w-full' : 'bg-blue-500 animate-indeterminate-progress'}`} 
@@ -217,7 +434,6 @@ const App: React.FC = () => {
              </div>
           </div>
 
-          {/* Execution Time Metrics */}
           <div className="bg-white p-4 py-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-[115px] relative overflow-hidden group hover:border-slate-300 transition-colors">
              <div className="flex flex-col items-center flex-1 justify-center">
                 <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Execution Metrics</span>
@@ -225,7 +441,6 @@ const App: React.FC = () => {
                    {formatSeconds(buildSeconds)}
                 </span>
              </div>
-             
              <div className="flex items-center justify-between border-t border-slate-100 pt-2 pb-0.5 shrink-0">
                 <div className="flex flex-col items-start">
                    <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Job Start</span>
@@ -241,7 +456,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Lower KPI Stats */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar shrink-0">
           {stats.map((stat, i) => (
             <div key={i} className="flex-shrink-0 min-w-[145px] bg-white p-3 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300 hover:shadow-md">
@@ -253,7 +467,6 @@ const App: React.FC = () => {
           ))}
         </div>
 
-        {/* Content Area */}
         <div ref={buildScrollRef} className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar scroll-smooth">
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
@@ -303,35 +516,6 @@ const App: React.FC = () => {
                       ))}
                    </tbody>
                  </table>
-               </div>
-            )}
-          </section>
-
-          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div onClick={() => toggleBuildSection('logs')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-slate-900 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">EXECUTION LOGS</span></div>
-              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.logs ? '' : 'rotate-90'}`} />
-            </div>
-            {!collapsedBuildSections.logs && (
-               <div className="p-10 bg-slate-50 flex flex-col items-center justify-center text-center animate-in fade-in duration-300">
-                  {isRunning ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin" />
-                      <div className="flex flex-col">
-                        <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Logs streaming soon</span>
-                        <p className="text-[10px] text-slate-400 max-w-xs mt-1">Initializing persistent log backend stream...</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-5">
-                      <div className="w-12 h-12 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400">
-                        <ICONS.Terminal className="w-6 h-6" />
-                      </div>
-                      <button className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md">
-                        <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD FULL LOG ARCHIVE
-                      </button>
-                    </div>
-                  )}
                </div>
             )}
           </section>
@@ -389,7 +573,7 @@ const App: React.FC = () => {
             </div>
           </aside>
           <main className="flex-1 overflow-hidden relative bg-slate-50/30 px-10 py-6">
-             {(selectedStepId === 'step1' || selectedStepId === 'step0') ? renderQuickBuildStepView() : <div className="p-20 text-center"><h1 className="text-slate-400 font-black tracking-widest uppercase">CONTENT UNAVAILABLE</h1></div>}
+             {(selectedStepId === 'step1' || selectedStepId === 'step0') ? renderQuickBuildStepView() : (selectedStepId === 'step2' || selectedStepId === 'step3') ? renderTestStepView() : <div className="p-20 text-center"><h1 className="text-slate-400 font-black tracking-widest uppercase">CONTENT UNAVAILABLE</h1></div>}
           </main>
         </div>
       </div>
