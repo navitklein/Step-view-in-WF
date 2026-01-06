@@ -18,10 +18,15 @@
               progress: {
                 '0%': { transform: 'translateX(-100%)' },
                 '100%': { transform: 'translateX(300%)' },
+              },
+              bounceX: {
+                '0%, 100%': { transform: 'translateX(-15%)' },
+                '50%': { transform: 'translateX(15%)' },
               }
             },
             animation: {
               'indeterminate-progress': 'progress 1.5s infinite linear',
+              'bounce-x': 'bounceX 1s infinite ease-in-out',
             }
           }
         }
@@ -60,7 +65,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
-        /* Custom styles for the high-density professional look */
         .card-shadow {
             box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
         }
