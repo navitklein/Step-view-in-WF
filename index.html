@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,11 +21,16 @@
               bounceX: {
                 '0%, 100%': { transform: 'translateX(-15%)' },
                 '50%': { transform: 'translateX(15%)' },
+              },
+              bounceY: {
+                '0%, 100%': { transform: 'translateY(-10%)' },
+                '50%': { transform: 'translateY(10%)' },
               }
             },
             animation: {
               'indeterminate-progress': 'progress 1.5s infinite linear',
               'bounce-x': 'bounceX 1s infinite ease-in-out',
+              'bounce-y': 'bounceY 1.2s infinite ease-in-out',
             }
           }
         }

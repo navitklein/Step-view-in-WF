@@ -41,6 +41,9 @@ const App: React.FC = () => {
   
   const [showAllDeps, setShowAllDeps] = useState(false);
   const [depsPage, setDepsPage] = useState(1);
+  const [showScrollBouncer, setShowScrollBouncer] = useState(true);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const displayedDeps = useMemo(() => {
     return showAllDeps ? MOCK_BUILD_DEPS : MOCK_BUILD_DEPS.filter(d => d.isModified);
@@ -56,6 +59,18 @@ const App: React.FC = () => {
   useEffect(() => {
     setDepsPage(1);
   }, [showAllDeps, selectedStepId]);
+
+  const handleScroll = useCallback(() => {
+    if (scrollContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      // Hide bouncer if we scrolled down more than 50px or reached the bottom
+      if (scrollTop > 50 || (scrollHeight - scrollTop - clientHeight < 10)) {
+        setShowScrollBouncer(false);
+      } else {
+        setShowScrollBouncer(true);
+      }
+    }
+  }, []);
 
   const [resOutcome, setResOutcome] = useState<'PASSED' | 'FAILED' | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -360,151 +375,173 @@ const App: React.FC = () => {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar scroll-smooth">
-          {/* Settings Section */}
-          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
-              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.settings ? '' : 'rotate-90'}`} />
-            </div>
-            {!collapsedBuildSections.settings && (
-               <div className="p-0 animate-in slide-in-from-top-2 duration-300">
-                  {isUnifiedPatch ? (
-                    <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
-                      <div className="flex flex-col divide-y divide-slate-100">
-                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Silicon</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
-                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC Signing</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
-                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC Encryption</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
-                      </div>
-                      <div className="flex flex-col divide-y divide-slate-100">
-                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step</span><span className="text-[12px] font-black text-slate-800 uppercase mono">A0</span></div>
-                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT Signing</span><span className="text-[12px] font-black text-rose-600 uppercase mono">Disabled</span></div>
-                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT Encryption</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 divide-x divide-slate-100">
-                      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
-                      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-800 uppercase mono">AO</span></div>
-                    </div>
-                  )}
-               </div>
-            )}
-          </section>
-
-          {/* Dependencies Section */}
-          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-            <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-1 h-3 bg-brand rounded-full" />
-                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
-                <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono">{MOCK_BUILD_DEPS.filter(d => d.isModified).length}/{MOCK_BUILD_DEPS.length}</span>
+        <div className="flex-1 overflow-hidden relative group">
+          <div 
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="h-full overflow-y-auto space-y-3 pr-1 custom-scrollbar scroll-smooth"
+          >
+            {/* Settings Section */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
+                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.settings ? '' : 'rotate-90'}`} />
               </div>
-              <div className="flex items-center gap-4">
-                <button onClick={(e) => { e.stopPropagation(); setShowAllDeps(!showAllDeps); }} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded shadow-sm text-[9px] font-black text-slate-500 hover:text-brand transition-all uppercase tracking-widest">
-                  <ICONS.Filter className="w-3 h-3" /> {showAllDeps ? 'Show Changes Only' : 'Show All Dependencies'}
-                </button>
-                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
-              </div>
-            </div>
-            {!collapsedBuildSections.deps && (
-               <>
-                 <div className="overflow-x-auto animate-in fade-in duration-300">
-                   <table className="w-full text-left text-[11px] border-collapse">
-                     <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
-                       <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th><th className="px-6 py-3 text-right">Status</th></tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-50">
-                        {paginatedDeps.map((dep, i) => (
-                          <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{isUnifiedPatch ? 'Unified_' : ''}Ingredient_{dep.id}</td>
-                            <td className="px-6 py-2.5 mono text-slate-400 tabular-nums">{dep.version}</td>
-                            <td className="px-6 py-2.5 mono text-brand font-bold tabular-nums">v25.1.0</td>
-                            <td className="px-6 py-2.5 text-right">
-                               {dep.isModified ? <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase tracking-tighter">Modified</span> : <span className="px-2 py-0.5 text-slate-300 text-[9px] font-black uppercase tracking-tighter">Unchanged</span>}
-                            </td>
-                          </tr>
-                        ))}
-                     </tbody>
-                   </table>
+              {!collapsedBuildSections.settings && (
+                 <div className="p-0 animate-in slide-in-from-top-2 duration-300">
+                    {isUnifiedPatch ? (
+                      <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+                        <div className="flex flex-col divide-y divide-slate-100">
+                          <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Silicon</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
+                          <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC Signing</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
+                          <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC Encryption</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
+                        </div>
+                        <div className="flex flex-col divide-y divide-slate-100">
+                          <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step</span><span className="text-[12px] font-black text-slate-800 uppercase mono">A0</span></div>
+                          <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT Signing</span><span className="text-[12px] font-black text-rose-600 uppercase mono">Disabled</span></div>
+                          <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT Encryption</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 divide-x divide-slate-100">
+                        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
+                        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-800 uppercase mono">AO</span></div>
+                      </div>
+                    )}
                  </div>
-                 
-                 <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/20">
-                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                     Showing <span className="text-slate-800">{(depsPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-slate-800">{Math.min(depsPage * ITEMS_PER_PAGE, displayedDeps.length)}</span> of <span className="text-slate-800">{displayedDeps.length}</span>
+              )}
+            </section>
+
+            {/* Dependencies Section */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+              <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-3 bg-brand rounded-full" />
+                  <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
+                  <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono">{MOCK_BUILD_DEPS.filter(d => d.isModified).length}/{MOCK_BUILD_DEPS.length}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button onClick={(e) => { e.stopPropagation(); setShowAllDeps(!showAllDeps); }} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded shadow-sm text-[9px] font-black text-slate-500 hover:text-brand transition-all uppercase tracking-widest">
+                    <ICONS.Filter className="w-3 h-3" /> {showAllDeps ? 'Show Changes Only' : 'Show All Dependencies'}
+                  </button>
+                  <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.deps ? '' : 'rotate-90'}`} />
+                </div>
+              </div>
+              {!collapsedBuildSections.deps && (
+                 <>
+                   <div className="overflow-x-auto animate-in fade-in duration-300">
+                     <table className="w-full text-left text-[11px] border-collapse">
+                       <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
+                         <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th><th className="px-6 py-3 text-right">Status</th></tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-50">
+                          {paginatedDeps.map((dep, i) => (
+                            <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{isUnifiedPatch ? 'Unified_' : ''}Ingredient_{dep.id}</td>
+                              <td className="px-6 py-2.5 mono text-slate-400 tabular-nums">{dep.version}</td>
+                              <td className="px-6 py-2.5 mono text-brand font-bold tabular-nums">v25.1.0</td>
+                              <td className="px-6 py-2.5 text-right">
+                                 {dep.isModified ? <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase tracking-tighter">Modified</span> : <span className="px-2 py-0.5 text-slate-300 text-[9px] font-black uppercase tracking-tighter">Unchanged</span>}
+                              </td>
+                            </tr>
+                          ))}
+                       </tbody>
+                     </table>
                    </div>
-                   <div className="flex items-center gap-1">
-                     <button 
-                        disabled={depsPage === 1}
-                        onClick={() => setDepsPage(p => Math.max(1, p - 1))}
-                        className={`p-1.5 rounded border border-slate-200 transition-all ${depsPage === 1 ? 'opacity-30 cursor-not-allowed bg-slate-50' : 'hover:bg-white hover:text-brand'}`}
-                     >
-                       <svg className="w-3.5 h-3.5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-                     </button>
-                     <div className="flex items-center gap-0.5 mx-2">
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                          <button 
-                            key={page}
-                            onClick={() => setDepsPage(page)}
-                            className={`w-7 h-7 flex items-center justify-center rounded text-[10px] font-black transition-all ${depsPage === page ? 'bg-brand text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
-                          >
-                            {page}
-                          </button>
-                        ))}
+                   
+                   <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/20">
+                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                       Showing <span className="text-slate-800">{(depsPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-slate-800">{Math.min(depsPage * ITEMS_PER_PAGE, displayedDeps.length)}</span> of <span className="text-slate-800">{displayedDeps.length}</span>
                      </div>
-                     <button 
-                        disabled={depsPage === totalPages}
-                        onClick={() => setDepsPage(p => Math.min(totalPages, p + 1))}
-                        className={`p-1.5 rounded border border-slate-200 transition-all ${depsPage === totalPages ? 'opacity-30 cursor-not-allowed bg-slate-50' : 'hover:bg-white hover:text-brand'}`}
-                     >
-                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
-                     </button>
-                   </div>
-                 </div>
-               </>
-            )}
-          </section>
-
-          {/* Build Logs Section - Refined as requested */}
-          <section className={`rounded-xl border shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${isFailed ? 'border-rose-300' : 'bg-white border-slate-200'}`}>
-            <div onClick={() => toggleBuildSection('logs')} className={`px-5 py-3 border-b flex items-center justify-between cursor-pointer transition-colors ${isFailed ? 'bg-rose-50/30 border-rose-100 hover:bg-rose-50' : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-1 h-3 rounded-full ${isRunning ? 'bg-blue-500' : isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                <span className="text-[11px] font-black uppercase tracking-widest text-slate-800">BUILD EXECUTION LOGS</span>
-              </div>
-              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.logs ? '' : 'rotate-90'}`} />
-            </div>
-            {!collapsedBuildSections.logs && (
-               <div className="p-8 flex flex-col items-center justify-center gap-5 animate-in slide-in-from-top-2 duration-300 min-h-[160px] bg-white">
-                  {isRunning ? (
-                    <div className="flex flex-col items-center text-center">
-                       <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4" />
-                       <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest max-w-[380px] leading-relaxed">
-                          Detailed execution logs are being generated and will be available for download once the build process completes.
-                       </p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center text-center">
-                       <ICONS.Terminal className={`w-10 h-10 mb-4 opacity-30 ${isFailed ? 'text-rose-600' : 'text-slate-400'}`} />
-                       <div className="mb-4">
-                          <h4 className={`text-[12px] font-black uppercase tracking-widest mb-1 ${isSuccess ? 'text-emerald-700' : 'text-slate-800'}`}>
-                             {isSuccess ? 'Build Logs Ready' : 'Execution Interrupted'}
-                          </h4>
-                          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest max-w-[340px] leading-relaxed">
-                             {isSuccess 
-                               ? "Direct log visibility is limited at the moment. Please download the full log for detailed analysis."
-                               : "A failure occurred during build generation. Please download the log file to identify the root cause."
-                             }
-                          </p>
-                       </div>
-                       <button className={`flex items-center gap-2 px-6 py-2.5 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition-all ${isFailed ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}>
-                          <ICONS.Download className="w-4 h-4" /> {isFailed ? 'DOWNLOAD FAILURE LOG' : 'DOWNLOAD BUILD LOG'}
+                     <div className="flex items-center gap-1">
+                       <button 
+                          disabled={depsPage === 1}
+                          onClick={() => setDepsPage(p => Math.max(1, p - 1))}
+                          className={`p-1.5 rounded border border-slate-200 transition-all ${depsPage === 1 ? 'opacity-30 cursor-not-allowed bg-slate-50' : 'hover:bg-white hover:text-brand'}`}
+                       >
+                         <svg className="w-3.5 h-3.5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                        </button>
-                    </div>
-                  )}
+                       <div className="flex items-center gap-0.5 mx-2">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button 
+                              key={page}
+                              onClick={() => setDepsPage(page)}
+                              className={`w-7 h-7 flex items-center justify-center rounded text-[10px] font-black transition-all ${depsPage === page ? 'bg-brand text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                       </div>
+                       <button 
+                          disabled={depsPage === totalPages}
+                          onClick={() => setDepsPage(p => Math.min(totalPages, p + 1))}
+                          className={`p-1.5 rounded border border-slate-200 transition-all ${depsPage === totalPages ? 'opacity-30 cursor-not-allowed bg-slate-50' : 'hover:bg-white hover:text-brand'}`}
+                       >
+                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                       </button>
+                     </div>
+                   </div>
+                 </>
+              )}
+            </section>
+
+            {/* Build Logs Section */}
+            <section className={`rounded-xl border shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${isFailed ? 'border-rose-300' : 'bg-white border-slate-200'}`}>
+              <div onClick={() => toggleBuildSection('logs')} className={`px-5 py-3 border-b flex items-center justify-between cursor-pointer transition-colors ${isFailed ? 'bg-rose-50/30 border-rose-100 hover:bg-rose-50' : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-1 h-3 rounded-full ${isRunning ? 'bg-blue-500' : isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-800">BUILD EXECUTION LOGS</span>
+                </div>
+                <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.logs ? '' : 'rotate-90'}`} />
+              </div>
+              {!collapsedBuildSections.logs && (
+                 <div className="p-8 flex flex-col items-center justify-center gap-5 animate-in slide-in-from-top-2 duration-300 min-h-[160px] bg-white">
+                    {isRunning ? (
+                      <div className="flex flex-col items-center text-center">
+                         <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4" />
+                         <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest max-w-[380px] leading-relaxed">
+                            Detailed execution logs are being generated and will be available for download once the build process completes.
+                         </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center text-center">
+                         <ICONS.Terminal className={`w-10 h-10 mb-4 opacity-30 ${isFailed ? 'text-rose-600' : 'text-slate-400'}`} />
+                         <div className="mb-4">
+                            <h4 className={`text-[12px] font-black uppercase tracking-widest mb-1 ${isSuccess ? 'text-emerald-700' : 'text-slate-800'}`}>
+                               {isSuccess ? 'Build Logs Ready' : 'Execution Interrupted'}
+                            </h4>
+                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest max-w-[340px] leading-relaxed">
+                               {isSuccess 
+                                 ? "Direct log visibility is limited at the moment. Please download the full log for detailed analysis."
+                                 : "A failure occurred during build generation. Please download the log file to identify the root cause."
+                               }
+                            </p>
+                         </div>
+                         <button className={`flex items-center gap-2 px-6 py-2.5 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition-all ${isFailed ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}>
+                            <ICONS.Download className="w-4 h-4" /> {isFailed ? 'DOWNLOAD FAILURE LOG' : 'DOWNLOAD BUILD LOG'}
+                         </button>
+                      </div>
+                    )}
+                 </div>
+              )}
+            </section>
+          </div>
+
+          {/* Scroll Bouncer Indicator - REFINED UI */}
+          {showScrollBouncer && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-700 z-50">
+               <div className="flex items-center gap-5 bg-white pl-8 pr-2 py-2 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 ring-8 ring-slate-100/30">
+                 <span className="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] whitespace-nowrap">
+                   MORE DATA BELOW
+                 </span>
+                 <div className="bg-brand text-white w-7 h-7 flex items-center justify-center rounded-full shadow-md animate-bounce-y">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                    </svg>
+                 </div>
                </div>
-            )}
-          </section>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -651,7 +688,6 @@ const App: React.FC = () => {
   };
 
   const toggleBuildSection = (section: string) => setCollapsedBuildSections(prev => ({ ...prev, [section]: !prev[section] }));
-  // Fixed error where setCollapsedTestSections was not defined.
   const toggleTestSection = (section: string) => setCollapsedBuildSections(prev => ({ ...prev, [section]: !prev[section] }));
 
   return (
