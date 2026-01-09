@@ -6,60 +6,9 @@ import SidebarTier1 from './components/SidebarTier1';
 import SidebarTier2 from './components/SidebarTier2';
 import Header from './components/Header';
 
-type TestStepPhaseId = 'DISCOVERY' | 'PRE_SUBMIT' | 'SUBMISSION' | 'RUNNING' | 'REVIEW_REQUIRED' | 'COMPLETED';
+type TestStepPhaseId = 'DISCOVERY' | 'REVIEW' | 'SUBMISSION' | 'EXECUTION' | 'RESULT' | 'DONE';
 
-interface TestPhase {
-  id: TestStepPhaseId;
-  label: string;
-  icon: React.ReactNode;
-  requiresAction: boolean;
-  description: string;
-}
-
-const TEST_PHASES: TestPhase[] = [
-  { 
-    id: 'DISCOVERY', 
-    label: 'Discovery', 
-    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>, 
-    requiresAction: false,
-    description: 'Scanning environment and gathering test artifacts.'
-  },
-  { 
-    id: 'PRE_SUBMIT', 
-    label: 'Review', 
-    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, 
-    requiresAction: true,
-    description: 'Human confirmation of the test suite configuration.'
-  },
-  { 
-    id: 'SUBMISSION', 
-    label: 'Submission', 
-    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, 
-    requiresAction: false,
-    description: 'Dispatching payloads to the NGA orchestrator.'
-  },
-  { 
-    id: 'RUNNING', 
-    label: 'Execution', 
-    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, 
-    requiresAction: false,
-    description: 'Tests are live and running on physical silicon.'
-  },
-  { 
-    id: 'REVIEW_REQUIRED', 
-    label: 'Result', 
-    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, 
-    requiresAction: true,
-    description: 'Analyzing logs and providing final pass/fail resolution.'
-  },
-  { 
-    id: 'COMPLETED', 
-    label: 'Done', 
-    icon: <svg className="w-full h-full p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>, 
-    requiresAction: false,
-    description: 'Step successfully completed and artifacts archived.'
-  }
-];
+const TEST_PHASE_ORDER: TestStepPhaseId[] = ['DISCOVERY', 'REVIEW', 'SUBMISSION', 'EXECUTION', 'RESULT', 'DONE'];
 
 const App: React.FC = () => {
   const [nav, setNav] = useState<NavigationContext>({
@@ -83,33 +32,65 @@ const App: React.FC = () => {
   }, [nav.activeContext, nav.activeProjectId, nav.history]);
 
   const [selectedStepId, setSelectedStepId] = useState<string>('step2');
-  const [currentTestPhase, setCurrentTestPhase] = useState<TestStepPhaseId>('RUNNING');
+  const [currentTestPhase, setCurrentTestPhase] = useState<TestStepPhaseId>('EXECUTION');
+  const [isStateMenuOpen, setIsStateMenuOpen] = useState(false);
   const [isWorkflowSidebarCollapsed, setIsWorkflowSidebarCollapsed] = useState(false);
   
   const [showAllDeps, setShowAllDeps] = useState(false);
-  const [knobsPage, setKnobsPage] = useState(0);
+  const [resOutcome, setResOutcome] = useState<'PASSED' | 'FAILED' | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [buildSeconds, setBuildSeconds] = useState(1214);
+  const [resolutionReason, setResolutionReason] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  const stateMenuRef = useRef<HTMLDivElement>(null);
+  const buildScrollRef = useRef<HTMLDivElement>(null);
+
+  const [collapsedBuildSections, setCollapsedBuildSections] = useState<Record<string, boolean>>({
+    settings: false,
+    deps: false,
+  });
+
+  const [collapsedTestSections, setCollapsedTestSections] = useState<Record<string, boolean>>({
+    settings: false,
+    testlines: false,
+    matrix: false,
+  });
+
+  const toggleBuildSection = (section: string) => {
+    setCollapsedBuildSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const toggleTestSection = (section: string) => {
+    setCollapsedTestSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const displayedDeps = useMemo(() => {
     return showAllDeps ? MOCK_BUILD_DEPS : MOCK_BUILD_DEPS.filter(d => d.isModified);
   }, [showAllDeps]);
 
-  const buildScrollRef = useRef<HTMLDivElement>(null);
-
-  const [collapsedBuildSections, setCollapsedBuildSections] = useState({ settings: true, deps: true, knobs: false, straps: true, logs: true });
-
-  const [resOutcome, setResOutcome] = useState<'PASSED' | 'FAILED' | null>(null);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [buildSeconds, setBuildSeconds] = useState(1214);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (stateMenuRef.current && !stateMenuRef.current.contains(event.target as Node)) {
+        setIsStateMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let interval: any;
-    if (currentTestPhase === 'RUNNING') {
+    const isBuildExecution = activeTab === 'Quick Builds' && (currentTestPhase !== 'DONE');
+    const isTestExecution = currentTestPhase === 'EXECUTION';
+
+    if (isBuildExecution || isTestExecution) {
       interval = setInterval(() => {
         setBuildSeconds(prev => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [currentTestPhase]);
+  }, [currentTestPhase, activeTab]);
 
   const formatSeconds = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -126,29 +107,70 @@ const App: React.FC = () => {
     }));
   }, [nav.activeContext, nav.activeProjectId]);
 
-  const cycleDemoPhase = () => {
-    if (currentTestPhase === 'RUNNING') {
-      setCurrentTestPhase('COMPLETED');
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyFeedback(label);
+      setTimeout(() => setCopyFeedback(null), 2000);
+    });
+  };
+
+  const cycleBuildState = () => {
+    if (currentTestPhase !== 'DONE') {
+      setCurrentTestPhase('DONE');
       setResOutcome('PASSED');
-    } else if (currentTestPhase === 'COMPLETED' && resOutcome === 'PASSED') {
-      setCurrentTestPhase('COMPLETED');
+    } else if (resOutcome === 'PASSED') {
       setResOutcome('FAILED');
     } else {
-      setCurrentTestPhase('RUNNING');
+      setCurrentTestPhase('EXECUTION');
       setResOutcome(null);
-      setBuildSeconds(1214);
     }
   };
 
-  const toggleBuildSection = (id: keyof typeof collapsedBuildSections) => {
-    setCollapsedBuildSections(prev => ({ ...prev, [id]: !prev[id] }));
+  const cycleDemoPhase = () => {
+    if (activeTab === 'Quick Builds') {
+      cycleBuildState();
+      return;
+    }
+    const nextIdx = (TEST_PHASE_ORDER.indexOf(currentTestPhase) + 1) % TEST_PHASE_ORDER.length;
+    setCurrentTestPhase(TEST_PHASE_ORDER[nextIdx]);
+    if (TEST_PHASE_ORDER[nextIdx] === 'DONE') {
+      setResOutcome('PASSED');
+    } else {
+      setResOutcome(null);
+    }
   };
 
   const renderTestStepView = () => {
-    const isRunning = currentTestPhase === 'RUNNING';
-    const isCompleted = currentTestPhase === 'COMPLETED';
-    const isSuccess = isCompleted && resOutcome === 'PASSED';
-    const isFailed = isCompleted && resOutcome === 'FAILED';
+    const currentIndex = TEST_PHASE_ORDER.indexOf(currentTestPhase);
+    const isDiscovery = currentTestPhase === 'DISCOVERY';
+    const isReview = currentTestPhase === 'REVIEW';
+    const isSubmission = currentTestPhase === 'SUBMISSION';
+    const isExecution = currentTestPhase === 'EXECUTION';
+    const isResult = currentTestPhase === 'RESULT';
+    const isCompleted = currentTestPhase === 'DONE';
+
+    const kpis = (() => {
+      if (isReview) return [
+        { label: 'DISCOVERED', val: '450', color: 'slate' },
+        { label: 'SELECTED', val: '442', color: 'blue' },
+        { label: 'EXCLUDED', val: '8', color: 'amber' },
+      ];
+      if (isSubmission) return [
+        { label: 'DISCOVERED', val: '450', color: 'slate' },
+        { label: 'SUBMITTED', val: '442/450', color: 'blue' },
+      ];
+      if (isExecution || isResult || isCompleted) return [
+        { label: 'DISCOVERED', val: '450', color: 'slate' },
+        { label: 'SUBMITTED', val: '450', color: 'slate' },
+        { label: 'COMPLETED', val: '320', color: 'blue' },
+        { label: 'RUNNING', val: '12', color: 'purple' },
+        { label: 'PASSED', val: '312', color: 'emerald' },
+        { label: 'FAILED', val: '8', color: 'rose' },
+        { label: 'PENDING', val: '118', color: 'slate' },
+        { label: 'PASS RATE', val: '97.5%', color: 'brand' },
+      ];
+      return [];
+    })();
 
     return (
       <div className="flex flex-col space-y-4 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden relative">
@@ -162,282 +184,74 @@ const App: React.FC = () => {
                 </button>
              </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0">
-          <div className={`bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[115px] relative overflow-hidden transition-all duration-500 ${isSuccess ? 'bg-emerald-50/20 border-emerald-200' : isFailed ? 'bg-rose-50/20 border-rose-200' : ''}`}>
-             <div className="p-4 flex flex-col h-full">
-                <div className="flex items-center justify-between mb-2">
-                   <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ring-1 ring-inset ${isRunning ? 'bg-blue-50 text-blue-600 ring-blue-100 animate-pulse' : isSuccess ? 'bg-emerald-100 text-emerald-700 ring-emerald-200' : 'bg-rose-100 text-rose-700 ring-rose-200'}`}>
-                         {isRunning ? 'EXECUTING TESTS' : isSuccess ? 'VALIDATION SUCCESS' : 'VALIDATION FAILURE'}
-                      </span>
-                   </div>
-                   <div className="flex items-center gap-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                      <span>Total: 450</span>
-                      <span className="text-emerald-600">Pass: 442</span>
-                      <span className="text-rose-600">Fail: 8</span>
-                   </div>
-                </div>
-
-                <div className="flex-1 flex items-center justify-between min-h-0">
-                   <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">HEALTH SCORE</span>
-                      <div className="flex items-baseline gap-2">
-                         <span className={`text-2xl font-black tracking-tighter ${isSuccess ? 'text-emerald-700' : isFailed ? 'text-rose-700' : 'text-slate-900'}`}>
-                            {isRunning ? '98.2%' : isSuccess ? '100%' : '94.5%'}
-                         </span>
-                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Post-Silicon Stability</span>
-                      </div>
-                   </div>
-                   <div className="flex items-center gap-2">
-                      <div className="flex flex-col items-end">
-                         <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">POOL OCCUPANCY</span>
-                         <span className="text-[11px] font-black text-slate-800">12/15 SUTs</span>
-                      </div>
-                   </div>
-                </div>
-             </div>
-             <div className="h-1.5 w-full bg-slate-50 mt-auto border-t overflow-hidden">
-                <div 
-                  className={`h-full transition-all duration-1000 ease-out ${isSuccess ? 'bg-emerald-500 w-full' : isFailed ? 'bg-rose-500 w-full' : 'bg-blue-500 animate-indeterminate-progress'}`} 
-                  style={!isRunning && !isCompleted ? { width: '0%' } : isRunning ? {} : { width: '100%' }}
-                />
-             </div>
-          </div>
-
-          <div className="bg-white p-4 py-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-[115px] relative overflow-hidden group hover:border-slate-300 transition-colors">
-             <div className="flex flex-col items-center flex-1 justify-center">
-                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Wall Clock Time</span>
-                <span className={`text-[24px] font-black mono tracking-tight leading-none tabular-nums ${isRunning ? 'text-slate-800' : isSuccess ? 'text-emerald-700' : 'text-rose-700'}`}>
-                   {formatSeconds(buildSeconds)}
-                </span>
-             </div>
-             <div className="flex items-center justify-between border-t border-slate-100 pt-2 pb-0.5 shrink-0">
-                <div className="flex items-center gap-4">
-                   <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Vcc Value</span>
-                      <span className="text-[10px] font-bold text-slate-600 leading-none mono tracking-tighter">0.854V</span>
-                   </div>
-                   <div className="flex flex-col">
-                      <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">T-Junction</span>
-                      <span className="text-[10px] font-bold text-slate-600 leading-none mono tracking-tighter">42.5°C</span>
-                   </div>
-                </div>
-                <div className="flex flex-col items-end">
-                   <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Pool Location</span>
-                   <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">IDC_LAB_E04</span>
-                </div>
-             </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between px-6 py-3 bg-white rounded-xl border border-slate-200 shadow-sm shrink-0">
-           {TEST_PHASES.map((phase, idx) => {
-             const phaseOrder = ['DISCOVERY', 'PRE_SUBMIT', 'SUBMISSION', 'RUNNING', 'REVIEW_REQUIRED', 'COMPLETED'];
-             const currentIdx = phaseOrder.indexOf(currentTestPhase);
-             const thisIdx = phaseOrder.indexOf(phase.id);
-             const isPassed = thisIdx < currentIdx;
-             const isCurrent = thisIdx === currentIdx;
-             
-             return (
-               <React.Fragment key={phase.id}>
-                 <div className="flex flex-col items-center gap-1 group cursor-help">
-                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${isPassed ? 'bg-emerald-500 border-emerald-500 text-white' : isCurrent ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-slate-50 border-slate-200 text-slate-300'}`}>
-                       <div className="w-4 h-4">{phase.icon}</div>
-                    </div>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${isPassed ? 'text-emerald-600' : isCurrent ? 'text-blue-600' : 'text-slate-400'}`}>{phase.label}</span>
-                 </div>
-                 {idx < TEST_PHASES.length - 1 && (
-                   <div className={`flex-1 h-0.5 mx-2 rounded-full ${isPassed ? 'bg-emerald-500' : 'bg-slate-100'}`} />
-                 )}
-               </React.Fragment>
-             );
-           })}
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar scroll-smooth">
-           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-              <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 shrink-0">
-                 <div className="flex items-center gap-3">
-                    <div className="w-1 h-3 bg-brand rounded-full" />
-                    <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">EXECUTING TEST CASES</span>
-                    <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono tracking-tighter">LIVE MONITOR</span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <button className="px-3 py-1 bg-white border border-slate-200 rounded text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 hover:text-brand transition-all shadow-sm">
-                       <ICONS.Filter className="w-3 h-3" /> FAILED ONLY
-                    </button>
-                 </div>
-              </div>
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left text-[11px] border-collapse">
-                   <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">
-                     <tr>
-                        <th className="px-6 py-3">Case ID</th>
-                        <th className="px-6 py-3">Module</th>
-                        <th className="px-6 py-3">Cycle</th>
-                        <th className="px-6 py-3 text-right">Outcome</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {[1,2,3,4,5,6,7,8].map(i => (
-                        <tr key={i} className="hover:bg-slate-50/50 group">
-                          <td className="px-6 py-2.5 font-bold text-slate-700 mono">VAL_PMC_PWR_CYCLE_00{i}</td>
-                          <td className="px-6 py-2.5 text-slate-500">PowerManagement</td>
-                          <td className="px-6 py-2.5 tabular-nums text-slate-400">Iter {i}/100</td>
-                          <td className="px-6 py-2.5 text-right">
-                             <div className="flex items-center justify-end gap-2">
-                                <span className={`text-[9px] font-black uppercase tracking-tighter ${i % 3 === 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                   {i % 3 === 0 ? 'FAILED' : 'PASSED'}
-                                </span>
-                                <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-400 transition-all">
-                                   <ICONS.ExternalLink className="w-3 h-3" />
-                                </button>
-                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                   </tbody>
-                 </table>
-              </div>
-           </section>
-        </div>
-      </div>
-    );
-  };
-
-  const renderQuickBuildStepView = () => {
-    const isCompleted = currentTestPhase === 'COMPLETED';
-    const isRunning = currentTestPhase === 'RUNNING';
-    const isUnifiedPatch = selectedStepId === 'step0';
-    const isSuccess = isCompleted && resOutcome === 'PASSED';
-    const isFailed = isCompleted && resOutcome === 'FAILED';
-
-    const title = isUnifiedPatch ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION";
-    const totalDeps = MOCK_BUILD_DEPS.length;
-    const changedDepsCount = MOCK_BUILD_DEPS.filter(d => d.isModified).length;
-    
-    const stats = [
-      { label: 'Dep. Changes', val: `${changedDepsCount}/${totalDeps}`, color: 'blue' },
-      { label: 'Package Size', val: isUnifiedPatch ? '4KB' : '32MB', color: 'slate' },
-      { label: 'Complexity', val: isUnifiedPatch ? 'Low' : 'High', color: 'purple' }
-    ];
-
-    return (
-      <div className="flex flex-col space-y-4 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden relative">
-        <div className="flex items-center justify-between shrink-0 mb-1">
-          <div className="flex items-center gap-4">
-             <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">{title}</h1>
-             <div className="h-4 w-[1px] bg-slate-200 mx-1" />
-             <div className="flex items-center gap-2">
-                <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
-                   Cycle State <ICONS.ChevronRight className="w-2 h-2 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-             </div>
-          </div>
           
-          {/* Main CTAs in Title Row - Only visible when build finish successfully */}
-          {isSuccess && (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 duration-300">
-               <button className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all">
-                  <ICONS.Download className="w-3.5 h-3.5" /> DOWNLOAD PACKAGE
-               </button>
-               <button onClick={() => handleTabChange('Releases')} className="flex items-center gap-2 px-4 py-1.5 bg-brand text-white rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">
-                  <ICONS.ExternalLink className="w-3.5 h-3.5" /> GO TO RELEASE
-               </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+             {!isCompleted && (
+                <button className="flex items-center gap-2 px-4 py-1.5 bg-slate-200 text-slate-600 rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-slate-300 hover:text-rose-600 transition-all">
+                  <ICONS.MoreHorizontal className="w-3.5 h-3.5" /> ABORT STEP
+                </button>
+             )}
+             {isReview && (
+                <button onClick={cycleDemoPhase} className="flex items-center gap-2 px-4 py-1.5 bg-brand text-white rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">
+                   <ICONS.Terminal className="w-3.5 h-3.5" /> SUBMIT TO NGA
+                </button>
+             )}
+             {isExecution && (
+                <button className="flex items-center gap-2 px-4 py-1.5 bg-brand text-white rounded shadow-sm text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all">
+                   <ICONS.ExternalLink className="w-3.5 h-3.5" /> VIEW LIVE LOGS
+                </button>
+             )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 shrink-0">
-          <div className={`bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[115px] relative overflow-hidden transition-all duration-500 ${isSuccess ? 'bg-emerald-50/20 border-emerald-200' : isFailed ? 'bg-rose-50/20 border-rose-200' : ''}`}>
-             {isCompleted ? (
-               <div className="flex flex-col h-full p-4 animate-in zoom-in-95 duration-500">
-                  <div className="flex items-center justify-between mb-1 shrink-0">
-                     <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ring-1 ring-inset ${isSuccess ? 'bg-emerald-100 text-emerald-700 ring-emerald-200' : 'bg-rose-100 text-rose-700 ring-rose-200'}`}>
-                           {isSuccess ? 'SUCCESS' : 'FAILURE'}
-                        </span>
-                        <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest bg-white/50 px-1.5 py-0.5 rounded border border-slate-100">RELEASE ID: 1166</span>
-                     </div>
-                     {/* Result Icon Actions Cluster - All icons now */}
-                     <div className="flex items-center gap-1">
-                        <button onClick={() => handleTabChange('Releases')} className="p-1.5 hover:bg-white/80 rounded text-slate-400 hover:text-slate-600 transition-colors" title="View Release">
-                           <ICONS.ExternalLink className="w-3.5 h-3.5" />
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[115px] relative overflow-hidden group hover:border-slate-300 transition-colors">
+             <div className="p-4 flex flex-col justify-center gap-2 h-full">
+                <div className="flex items-center justify-between">
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STEP STATE</span>
+                   <div className="flex items-center gap-3">
+                      <div className="flex gap-1">
+                         {TEST_PHASE_ORDER.map((phase, i) => (
+                           <div key={phase} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i <= currentIndex ? 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]' : 'bg-slate-200'}`} />
+                         ))}
+                      </div>
+                      <div className="relative" ref={stateMenuRef}>
+                        <button onClick={() => setIsStateMenuOpen(!isStateMenuOpen)} className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase tracking-widest hover:bg-blue-100 transition-colors">
+                          {currentTestPhase}
                         </button>
-                        <button onClick={() => setIsFavorite(!isFavorite)} className="p-1.5 hover:bg-white/80 rounded transition-colors" title="Favorite Build">
-                           <svg className={`w-3.5 h-3.5 ${isFavorite ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.382-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-                        </button>
-                        <button className="p-1.5 hover:bg-white/80 rounded text-slate-400 hover:text-slate-600 transition-colors" title="Download Artifacts"><ICONS.Download className="w-3.5 h-3.5" /></button>
-                     </div>
-                  </div>
-                  <div className="flex flex-1 items-center justify-between min-h-0">
-                     <div className="flex flex-col">
-                        <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">TARGET ARTIFACT</span>
-                        <div className="flex items-baseline gap-2">
-                           <span className={`text-2xl font-black tracking-tighter ${isSuccess ? 'text-slate-900' : 'text-rose-900'}`}>
-                              {isSuccess ? '1.2.6.0' : 'ERROR_LOG_24'}
-                           </span>
-                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">IFWI_DMR_Ao_Rel</span>
-                        </div>
-                        <div className="mt-1.5">
-                           <span className="text-[9px] font-bold text-slate-500 bg-white/40 px-1.5 py-0.5 rounded border border-slate-100">
-                             Baseline: IFWI_DMR_Ao_Rel v24.12.0
-                           </span>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-             ) : (
-               <div className="p-3 pb-1 flex flex-col flex-1">
-                 <div className="flex items-center justify-between mb-2">
-                   <div className="flex items-center gap-2">
-                      <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded shadow-sm border ${isUnifiedPatch ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                         {isUnifiedPatch ? 'UNIFIED PATCH' : 'IFWI BUILD'}
-                      </span>
+                        {isStateMenuOpen && (
+                          <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-200">
+                            <p className="px-4 py-1 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 mb-1">LIFECYCLE</p>
+                            {TEST_PHASE_ORDER.map((phase) => (
+                              <button key={phase} onClick={() => { setCurrentTestPhase(phase); setIsStateMenuOpen(false); }} className={`w-full text-left px-4 py-2 text-[11px] font-black uppercase flex items-center gap-3 hover:bg-slate-50 transition-colors ${currentTestPhase === phase ? 'text-blue-600' : 'text-slate-500'}`}>
+                                <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${currentTestPhase === phase ? 'border-blue-500 bg-blue-50' : 'border-slate-300'}`}>
+                                  {currentTestPhase === phase && <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                                </div>
+                                {phase}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                    </div>
-                   <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tight ring-1 ring-inset bg-blue-50 text-blue-600 ring-blue-100 animate-pulse">
-                         EXECUTING
-                      </span>
+                </div>
+                <div className="flex items-center justify-between">
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">NGA CONNECTION</span>
+                   <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 font-black uppercase">ONLINE</span>
+                </div>
+                <div className="flex items-center gap-3">
+                   <div className="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div className={`h-full bg-blue-500 transition-all duration-1000 ${(isDiscovery || isSubmission) ? 'animate-indeterminate-progress' : ''}`} style={{ width: (isExecution || isResult || isCompleted) ? '78%' : '15%' }} />
                    </div>
-                 </div>
-                 <div className="flex items-center gap-8 flex-1">
-                    <div className="flex-1 flex flex-col justify-center min-w-0">
-                       <span className="text-[7px] font-black text-slate-400 uppercase mb-0.5 tracking-widest">FROM: BASELINE</span>
-                       <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-slate-700 truncate leading-none mb-1">IFWI_DMR_Ao_Rel</span>
-                          <span className="text-[11px] font-black text-slate-900 mono tracking-tighter tabular-nums">v24.12.0</span>
-                       </div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center shrink-0">
-                       <div className="w-6 h-6 rounded-full border border-blue-100 flex items-center justify-center shadow-sm bg-blue-50 text-blue-500">
-                         <ICONS.ChevronRight className="w-3.5 h-3.5 animate-bounce-x" />
-                       </div>
-                    </div>
-                    <div className="flex-1 flex flex-col justify-center min-w-0">
-                       <span className="text-[7px] font-black uppercase mb-0.5 tracking-widest text-brand">TO: TARGET</span>
-                       <div className="flex flex-col">
-                          <span className="text-[10px] font-bold truncate leading-none mb-1 text-brand">IFWI_DMR_Ao_Rel</span>
-                          <span className="text-[11px] font-black mono tracking-tighter tabular-nums text-brand">v25.1.0-RC</span>
-                       </div>
-                    </div>
-                 </div>
-               </div>
-             )}
-             <div className={`h-1.5 w-full bg-slate-50 mt-auto border-t overflow-hidden ${isCompleted ? 'border-transparent' : 'border-slate-100'}`}>
-                <div 
-                  className={`h-full transition-all duration-1000 ease-out ${isSuccess ? 'bg-emerald-500 w-full' : isFailed ? 'bg-rose-500 w-full' : 'bg-blue-500 animate-indeterminate-progress'}`} 
-                  style={!isRunning && !isCompleted ? { width: '0%' } : isRunning ? {} : { width: '100%' }}
-                />
+                   <span className="text-[10px] font-black text-blue-600 tabular-nums">{(isExecution || isResult || isCompleted) ? '78%' : '--%'}</span>
+                </div>
              </div>
           </div>
 
           <div className="bg-white p-4 py-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-[115px] relative overflow-hidden group hover:border-slate-300 transition-colors">
              <div className="flex flex-col items-center flex-1 justify-center">
-                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Execution Metrics</span>
-                <span className={`text-[24px] font-black mono tracking-tight leading-none tabular-nums animate-in slide-in-from-bottom-1 ${isSuccess ? 'text-emerald-700' : isFailed ? 'text-rose-700' : 'text-slate-800'}`}>
+                <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em] mb-1">Total Duration</span>
+                <span className={`text-[24px] font-black mono tracking-tight leading-none tabular-nums animate-in slide-in-from-bottom-1 ${isExecution ? 'text-slate-800' : (resOutcome === 'PASSED' ? 'text-emerald-700' : 'text-rose-700')}`}>
                    {formatSeconds(buildSeconds)}
                 </span>
              </div>
@@ -448,36 +262,327 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex flex-col items-end">
                    <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-1 tracking-widest">Job Finish</span>
-                   <span className={`text-[10px] font-bold leading-none mono tracking-tighter ${isCompleted ? 'text-slate-600' : 'text-brand italic animate-pulse'}`}>
-                      {isCompleted ? '12/17 14:55:14' : 'EXECUTING...'}
+                   <span className={`text-[10px] font-bold leading-none mono tracking-tighter ${(isResult || isCompleted) ? 'text-slate-600' : 'text-brand italic animate-pulse'}`}>
+                      {(isResult || isCompleted) ? '12/17 14:55:14' : 'PENDING...'}
                    </span>
                 </div>
              </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar shrink-0">
-          {stats.map((stat, i) => (
-            <div key={i} className="flex-shrink-0 min-w-[145px] bg-white p-3 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300 hover:shadow-md">
+        <div className="flex-1 flex flex-col overflow-hidden">
+           {kpis.length > 0 && (
+             <div className="flex items-center gap-2 overflow-x-auto pb-4 no-scrollbar shrink-0">
+               {kpis.map((stat, i) => (
+                 <div key={i} className="flex-shrink-0 min-w-[120px] bg-white p-3 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300">
+                   <div className="flex flex-col">
+                     <span className="text-[16px] font-black text-slate-800 tracking-tight leading-none mb-1">{stat.val}</span>
+                     <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">{stat.label}</span>
+                   </div>
+                 </div>
+               ))}
+             </div>
+           )}
+
+           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-1">
+              {isDiscovery && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center space-y-4 animate-in fade-in duration-700">
+                   <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto animate-pulse border border-blue-100"><ICONS.Search className="w-8 h-8" /></div>
+                   <div className="max-w-md mx-auto"><h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest mb-2">Discovery Scanning</h3><p className="text-[12px] text-slate-500 leading-relaxed font-medium">We're currently scanning for available tests. This process may take a moment to complete. Please wait while we prepare your tests...</p></div>
+                </div>
+              )}
+
+              {isReview && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 flex items-start gap-4 shadow-sm animate-in slide-in-from-top-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 shrink-0 border border-blue-200"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
+                  <div className="flex flex-col space-y-1"><span className="text-[10px] font-black text-blue-700 uppercase tracking-widest">BEFORE SUBMITTING TESTS</span><ul className="text-[11px] text-blue-600/80 font-bold space-y-0.5 list-disc pl-4"><li>Review each test's configuration and properties</li><li>Select multiple test rows to bulk edit settings</li><li>Click on test row menu to edit individual test settings</li></ul></div>
+                </div>
+              )}
+
+              {isSubmission && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center space-y-4 animate-in fade-in duration-700">
+                   <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto border border-blue-100"><ICONS.Download className="w-8 h-8 rotate-180 animate-bounce" /></div>
+                   <div className="max-w-md mx-auto"><h3 className="text-[14px] font-black text-slate-800 uppercase tracking-widest mb-2">Dispatching to NGA</h3><p className="text-[12px] text-slate-500 leading-relaxed font-medium">We're submitting your tests to the NGA. This process may take anywhere from a few seconds to ~15 minutes. Please wait while we prepare your tests...</p></div>
+                </div>
+              )}
+
+              {isResult && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in zoom-in-95 mb-4">
+                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30"><h3 className="text-[12px] font-black text-slate-800 uppercase tracking-widest">Final Engineering Resolution</h3><p className="text-[11px] text-slate-500 font-medium">Please review results and provide a final resolution decision.</p></div>
+                  <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                       <button onClick={() => setResOutcome('PASSED')} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${resOutcome === 'PASSED' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-md ring-4 ring-emerald-500/10' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'}`}><svg className={`w-8 h-8 transition-transform ${resOutcome === 'PASSED' ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span className="text-[12px] font-black uppercase tracking-widest">PASS RESULT</span></button>
+                       <button onClick={() => setResOutcome('FAILED')} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${resOutcome === 'FAILED' ? 'bg-rose-50 border-rose-500 text-rose-700 shadow-md ring-4 ring-rose-500/10' : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'}`}><svg className={`w-8 h-8 transition-transform ${resOutcome === 'FAILED' ? 'scale-110' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span className="text-[12px] font-black uppercase tracking-widest">FAIL RESULT</span></button>
+                    </div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">RESOLUTION REASON (MANDATORY)</label><textarea value={resolutionReason} onChange={(e) => setResolutionReason(e.target.value)} placeholder="Engineering justification..." className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl p-4 text-[12px] font-medium outline-none focus:ring-2 focus:ring-blue-100 transition-all resize-none shadow-inner" /></div>
+                    <div className="flex justify-end"><button disabled={!resOutcome || !resolutionReason.trim()} onClick={cycleDemoPhase} className={`px-8 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all ${resOutcome && resolutionReason.trim() ? 'bg-brand text-white shadow-lg' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>SUBMIT RESOLUTION</button></div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div onClick={() => toggleTestSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">TEST SETTINGS</span></div>
+                    <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedTestSections.settings ? '' : 'rotate-90'}`} />
+                  </div>
+                  {!collapsedTestSections.settings && (
+                    <div className="p-0 animate-in slide-in-from-top-2 duration-300">
+                      <div className="grid grid-cols-2 divide-x divide-slate-100">
+                        <div className="flex flex-col">
+                           <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON</span><span className="text-[12px] font-black text-slate-800 mono uppercase">DMR-AP</span></div>
+                           <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">STEP</span><span className="text-[12px] font-black text-slate-800 mono uppercase">AO</span></div>
+                           <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50 lg:border-b-0"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SOC SIGNING</span><span className="text-[12px] font-black text-slate-400 italic">None</span></div>
+                        </div>
+                        <div className="flex flex-col">
+                           <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT1 SIGNING</span><span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[9px] font-black uppercase tracking-widest">ENABLED</span></div>
+                           <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SOC ENCRYPTION</span><span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[9px] font-black uppercase tracking-widest">ENABLED</span></div>
+                           <div className="flex items-center justify-between px-6 py-3"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT ENCRYPTION</span><span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded text-[9px] font-black uppercase tracking-widest">ENABLED</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                {(isReview || isExecution || isResult || isCompleted) && (
+                  <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div onClick={() => toggleTestSection('testlines')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3"><div className="w-1 h-3 bg-brand rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isReview ? 'DISCOVERED TESTS' : 'TEST LINES'}</span></div>
+                      <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedTestSections.testlines ? '' : 'rotate-90'}`} />
+                    </div>
+                    {!collapsedTestSections.testlines && (
+                      <div className="overflow-x-auto animate-in fade-in duration-300">
+                        <table className="w-full text-left text-[11px] border-collapse">
+                          <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">
+                            <tr><th className="px-6 py-3">Case ID</th><th className="px-6 py-3">SUT</th><th className="px-6 py-3">Time</th><th className="px-6 py-3 text-right">Outcome</th></tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {[1,2,3,4,5,6,7,8].map(i => (
+                              <tr key={i} className="hover:bg-slate-50/50 group transition-colors">
+                                <td className="px-6 py-2.5 font-bold text-slate-700 mono">VAL_TC_PTL_{i+100}</td>
+                                <td className="px-6 py-2.5 text-slate-500 mono uppercase">SUT_IDC_{i}</td>
+                                <td className="px-6 py-2.5 text-slate-400 tabular-nums mono">{isExecution || isResult || isCompleted ? `00:15:${i}0` : '--:--'}</td>
+                                <td className="px-6 py-2.5 text-right">
+                                  <span className={`text-[9px] font-black uppercase tracking-tighter ${i % 5 === 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {isReview ? 'READY' : (i % 5 === 0 ? 'FAILED' : 'PASSED')}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {(isExecution || isResult || isCompleted) && (
+                  <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div onClick={() => toggleTestSection('matrix')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3"><div className="w-1 h-3 bg-purple-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">HEAT MAP MATRIX</span></div>
+                      <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedTestSections.matrix ? '' : 'rotate-90'}`} />
+                    </div>
+                    {!collapsedTestSections.matrix && (
+                      <div className="p-6 animate-in slide-in-from-top-2 duration-300">
+                         <div className="flex flex-wrap gap-1.5 justify-center">
+                            {Array.from({length: 450}).map((_, i) => (
+                              <div key={i} title={`Test Case ${i+1}`} className={`w-3.5 h-3.5 rounded-sm shadow-sm hover:scale-125 transition-transform cursor-crosshair border border-white/20 ${i < 320 ? (i % 30 === 0 ? 'bg-rose-500' : 'bg-emerald-500') : 'bg-slate-100'}`} />
+                            ))}
+                         </div>
+                         <div className="mt-6 flex items-center justify-center gap-6">
+                            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /><span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Passed</span></div>
+                            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-sm bg-rose-500" /><span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Failed</span></div>
+                            <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-sm bg-slate-200" /><span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Pending</span></div>
+                         </div>
+                      </div>
+                    )}
+                  </section>
+                )}
+              </div>
+
+              {isCompleted && (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-12 text-center space-y-4 shadow-sm animate-in fade-in zoom-in-95">
+                  <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center border-4 border-emerald-200 mx-auto shadow-lg"><svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></div>
+                  <div className="max-w-md mx-auto"><h3 className="text-[16px] font-black text-emerald-800 uppercase tracking-widest">Validation Success</h3><p className="text-[12px] text-emerald-700/70 font-bold leading-relaxed">The step has been successfully archived. Engineering confirmed outcome: PASSED.</p><button onClick={() => handleTabChange('Workflows')} className="mt-6 px-8 py-2.5 bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 text-[11px] font-black uppercase tracking-widest">BACK TO WORKFLOW</button></div>
+                </div>
+              )}
+           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderQuickBuildStepView = () => {
+    const isCompleted = currentTestPhase === 'DONE';
+    const isSuccess = isCompleted && resOutcome === 'PASSED';
+    const isFailed = isCompleted && resOutcome === 'FAILED';
+    const isRunning = !isCompleted;
+
+    const cardBg = isSuccess ? 'bg-emerald-50/60' : isFailed ? 'bg-rose-50/60' : 'bg-blue-50/60';
+    const statusBarColor = isSuccess ? 'bg-emerald-600' : isFailed ? 'bg-rose-600' : 'bg-brand';
+
+    // 90 char target name: "Unified_pathc_DMR_A0" + 70 additional chars
+    const targetName = selectedStepId === 'step0' 
+      ? 'Unified_pathc_DMR_A0_BUILD_ENV_TARGET_RELEASE_v25_1_0_RC_VALIDATION_ENGINEERING_DEVOPS_CENTER'
+      : 'IFWI_DMR_AO_REL';
+
+    // Baseline prefix override
+    const baselinePrefix = selectedStepId === 'step0' ? 'UP' : 'IFWI';
+
+    return (
+      <div className="flex flex-col space-y-3 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden relative">
+        <div className="flex items-center justify-between shrink-0 mb-0.5">
+          <div className="flex items-center gap-4">
+             <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">
+               {selectedStepId === 'step0' ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION"}
+             </h1>
+             <div className="h-4 w-[1px] bg-slate-200 mx-1" />
+             <button onClick={cycleDemoPhase} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-[9px] font-black text-slate-600 uppercase transition-all flex items-center gap-1.5 group">
+                Cycle State <ICONS.ChevronRight className="w-2 h-2 group-hover:translate-x-0.5 transition-transform" />
+             </button>
+             {copyFeedback && (
+               <div className="px-2 py-0.5 bg-slate-800 text-white text-[9px] font-black uppercase rounded animate-in fade-in slide-in-from-left-1 shadow-sm">
+                 Copied {copyFeedback}
+               </div>
+             )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-10 gap-3 shrink-0">
+          {/* High Density Transformation Card - col-span-7 */}
+          <div className={`col-span-7 rounded-xl border border-slate-200 shadow-sm flex flex-col h-[110px] relative overflow-hidden transition-all duration-500 ${cardBg}`}>
+             {/* Unified Body Slot */}
+             <div className="flex-1 p-3.5 px-7 flex flex-col min-h-0">
+               {isSuccess ? (
+                 <div className="flex items-start justify-between animate-in zoom-in-95 duration-500">
+                    <div className="flex flex-col min-w-0 flex-1">
+                       <span className="text-[7px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-0.5 leading-none">TARGET</span>
+                       <h2 className="text-[20px] font-black text-slate-800 leading-none truncate mb-1 uppercase tracking-tight">
+                         {targetName}
+                       </h2>
+                       <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-emerald-700 mono tabular-nums uppercase">v25.1.0-RC // Release ID: 1166</span>
+                          <button onClick={() => copyToClipboard('1166', 'Release ID')} className="p-0.5 text-emerald-600/40 hover:text-emerald-700 transition-colors"><ICONS.Copy className="w-3 h-3"/></button>
+                       </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-0.5 shrink-0 -mt-1.5 -mr-3">
+                       <button 
+                         onClick={() => setIsFavorite(!isFavorite)} 
+                         title="Favorite Release"
+                         className={`p-2 rounded-full transition-all hover:bg-black/5 ${isFavorite ? 'text-amber-500' : 'text-slate-400 hover:text-amber-500'}`}
+                       >
+                          <ICONS.Star className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                       </button>
+                       <button title="Download Archive" className="p-2 rounded-full text-slate-400 hover:text-slate-900 hover:bg-black/5 transition-all">
+                          <ICONS.Download className="w-5 h-5" />
+                       </button>
+                       <button onClick={() => handleTabChange('Releases')} title="Go to Release View" className="p-2 rounded-full text-slate-400 hover:text-brand hover:bg-black/5 transition-all">
+                          <ICONS.ExternalLink className="w-5 h-5" />
+                       </button>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="flex items-center justify-between gap-4 relative flex-1">
+                    <div className="flex flex-col flex-1 min-w-0">
+                       <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">BASELINE</span>
+                       <span className="text-[11px] font-bold text-slate-800 uppercase truncate">{baselinePrefix}_DMR_AO_REL</span>
+                       <div className="flex items-center gap-1.5">
+                         <span className="text-[10px] font-medium text-slate-500 mono tabular-nums truncate">v24.12.0 // ID: 1016</span>
+                         <button onClick={() => copyToClipboard('1016', 'Baseline ID')} className="p-0.5 text-slate-300 hover:text-blue-600 transition-all rounded hover:bg-black/5"><ICONS.Copy className="w-2.5 h-2.5" /></button>
+                       </div>
+                    </div>
+                    <div className="flex items-center justify-center shrink-0 px-4 opacity-10">
+                       <svg className="w-10 h-4 text-slate-900" viewBox="0 0 24 12" fill="none"><path d="M1 6H23M23 6L18 1M23 6L18 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                    <div className="flex flex-col flex-1 items-end text-right min-w-0">
+                       <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">TARGET</span>
+                       <span className="text-[11px] font-black text-brand uppercase truncate leading-none">{targetName}</span>
+                       <div className="flex items-center gap-1.5 justify-end">
+                         <span className="text-[10px] font-bold text-brand mono tabular-nums truncate uppercase">v25.1.0-RC</span>
+                       </div>
+                    </div>
+                 </div>
+               )}
+             </div>
+
+             {/* Unified Footer Slot - No Background Shading, Static Height */}
+             <div className="flex items-center justify-between border-t border-black/[0.08] py-2.5 px-7 bg-transparent shrink-0">
+                <div className="flex items-center">
+                   <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest text-white shadow-sm transition-all duration-300 ${isSuccess ? 'bg-emerald-600' : isFailed ? 'bg-rose-600' : 'bg-brand'} ${isRunning ? 'animate-pulse' : ''} leading-none flex items-center h-4`}>
+                      {isRunning ? 'In Progress' : isSuccess ? 'Success' : 'Failure'}
+                   </div>
+                </div>
+                {/* Baseline in footer shown only when successfully finished */}
+                {isSuccess && (
+                  <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1 duration-300">
+                     <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">BASELINE:</span>
+                     <span className="text-[10px] font-bold text-slate-500 mono truncate opacity-70 leading-none">{baselinePrefix}_DMR_AO_REL v24.12.0 // ID: 1016</span>
+                  </div>
+                )}
+             </div>
+
+             {/* Unified Progress Bar Slot */}
+             <div className="h-1.5 w-full bg-slate-900/5 overflow-hidden shrink-0">
+                <div 
+                  className={`h-full transition-all duration-1000 ease-out ${statusBarColor} ${isRunning ? 'animate-indeterminate-progress' : ''}`} 
+                  style={isRunning ? {} : { width: '100%' }}
+                />
+             </div>
+          </div>
+
+          {/* Compact Wall Clock Metrics Card - col-span-3 */}
+          <div className="col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-[110px] relative overflow-hidden group hover:border-slate-300 transition-colors">
+             <div className="flex flex-col items-center flex-1 justify-center mt-0.5 px-6">
+                <span className="text-[7px] font-black text-slate-300 uppercase tracking-[0.4em] mb-1 leading-none">METRICS</span>
+                <span className="text-2xl font-black mono tracking-tight leading-none tabular-nums text-slate-800 drop-shadow-sm">
+                   {formatSeconds(buildSeconds)}
+                </span>
+             </div>
+             <div className="flex items-center justify-around border-t border-slate-50 mt-auto bg-slate-50/40 py-2.5 px-6 shrink-0">
+                <div className="flex flex-col items-center flex-1">
+                   <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5 tracking-widest">STARTED</span>
+                   <span className="text-[10px] font-bold text-slate-600 leading-none mono tabular-nums">12/17 14:35:00</span>
+                </div>
+                <div className="h-5 w-[1px] bg-slate-200 mx-2" />
+                <div className="flex flex-col items-center flex-1 min-w-[80px]">
+                   <span className="text-[7px] font-black text-slate-400 uppercase leading-none mb-0.5 tracking-widest">FINISHED</span>
+                   <span className="text-[10px] font-bold leading-none mono tabular-nums text-slate-600">
+                      {isCompleted ? '12/17 14:55:14' : '--:--:--'}
+                   </span>
+                </div>
+             </div>
+             <div className="h-1.5 w-full bg-slate-50 border-t border-slate-100 shrink-0" />
+          </div>
+        </div>
+
+        {/* High-Density Stats Row */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar shrink-0">
+          {[
+            { label: 'Dep. Changes', val: `${MOCK_BUILD_DEPS.filter(d => d.isModified).length}/${MOCK_BUILD_DEPS.length}`, color: 'blue' },
+            { label: 'Package Size', val: selectedStepId === 'step0' ? '4KB' : '32MB', color: 'slate' },
+            { label: 'Complexity', val: selectedStepId === 'step0' ? 'Low' : 'High', color: 'purple' }
+          ].map((stat, i) => (
+            <div key={i} className="flex-shrink-0 min-w-[140px] bg-white p-2.5 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300">
               <div className="flex flex-col">
-                <span className="text-[16px] font-black text-slate-800 tracking-tight leading-none mb-1">{stat.val}</span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">{stat.label}</span>
+                <span className="text-[15px] font-black text-slate-800 tracking-tight leading-none mb-0.5">{stat.val}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">{stat.label}</span>
               </div>
             </div>
           ))}
         </div>
 
-        <div ref={buildScrollRef} className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar scroll-smooth">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar scroll-smooth">
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI SETTINGS'}</span></div>
+              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{selectedStepId === 'step0' ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.settings ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedBuildSections.settings && (
                <div className="p-0 animate-in slide-in-from-top-2 duration-300">
                   <div className="grid grid-cols-2 divide-x divide-slate-100">
-                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800">DMR-AP</span></div>
-                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON STEP</span><span className="text-[12px] font-black text-slate-800">AO</span></div>
+                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
+                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON STEP</span><span className="text-[12px] font-black text-slate-800 uppercase mono">AO</span></div>
                   </div>
                </div>
             )}
@@ -487,8 +592,8 @@ const App: React.FC = () => {
             <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-3 bg-brand rounded-full" />
-                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
-                <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono">{changedDepsCount}/{totalDeps}</span>
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{selectedStepId === 'step0' ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
+                <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono">{MOCK_BUILD_DEPS.filter(d => d.isModified).length}/{MOCK_BUILD_DEPS.length}</span>
               </div>
               <div className="flex items-center gap-4">
                 <button onClick={(e) => { e.stopPropagation(); setShowAllDeps(!showAllDeps); }} className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded shadow-sm text-[9px] font-black text-slate-500 hover:text-brand transition-all uppercase tracking-widest">
@@ -506,7 +611,7 @@ const App: React.FC = () => {
                    <tbody className="divide-y divide-slate-50">
                       {displayedDeps.map((dep, i) => (
                         <tr key={i} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">Ingredient_{dep.id}</td>
+                          <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{selectedStepId === 'step0' ? 'Unified_' : ''}Ingredient_{dep.id}</td>
                           <td className="px-6 py-2.5 mono text-slate-400 tabular-nums">{dep.version}</td>
                           <td className="px-6 py-2.5 mono text-brand font-bold tabular-nums">v25.1.0</td>
                           <td className="px-6 py-2.5 text-right">
@@ -536,7 +641,7 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span>TRIGGERED BY <span className="text-slate-600 font-black">JD DAYAN, RONI</span></span>
+              <span>TRIGGERED BY <span className="text-slate-600 font-black uppercase">JD Dayan, Roni</span></span>
               <span>• RUN ID <span className="text-slate-600 mono font-black">507</span></span>
             </div>
           </div>
@@ -546,7 +651,9 @@ const App: React.FC = () => {
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               {!isWorkflowSidebarCollapsed && <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">WORKFLOW STAGES <span className="text-slate-300 ml-1">3</span></h2>}
               <button onClick={() => setIsWorkflowSidebarCollapsed(!isWorkflowSidebarCollapsed)} className="p-1.5 hover:bg-slate-50 rounded text-slate-400">
-                <svg className={`w-4 h-4 transition-transform ${isWorkflowSidebarCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7" /></svg>
+                <svg className={`w-4 h-4 transition-transform ${isWorkflowSidebarCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7" />
+                </svg>
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar bg-slate-50/20">
@@ -562,7 +669,7 @@ const App: React.FC = () => {
                         </div>
                         <div className="space-y-1">
                           {stage.steps.map(step => (
-                            <button key={step.id} onClick={() => setSelectedStepId(step.id)} className={`w-full text-left px-2.5 py-1.5 rounded border transition-all flex items-center justify-between ${selectedStepId === step.id ? 'bg-blue-50 border-blue-100 text-blue-700 font-bold' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}><span className="text-[10px] uppercase tracking-tight">{step.name}</span></button>
+                            <button key={step.id} onClick={() => { setSelectedStepId(step.id); if(step.id === 'step0' || step.id === 'step1') setCurrentTestPhase('EXECUTION'); }} className={`w-full text-left px-2.5 py-1.5 rounded border transition-all flex items-center justify-between ${selectedStepId === step.id ? 'bg-blue-50 border-blue-100 text-blue-700 font-bold' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}><span className="text-[10px] uppercase tracking-tight">{step.name}</span></button>
                           ))}
                         </div>
                       </>
