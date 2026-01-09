@@ -162,6 +162,7 @@ const App: React.FC = () => {
     const isSuccess = isCompleted && resOutcome === 'PASSED';
     const isFailed = isCompleted && resOutcome === 'FAILED';
     const isRunning = !isCompleted;
+    const isUnifiedPatch = selectedStepId === 'step0';
 
     const cardBg = isSuccess ? 'bg-emerald-50/60' : isFailed ? 'bg-rose-50/60' : 'bg-blue-50/60';
     const statusBarColor = isSuccess ? 'bg-emerald-600' : isFailed ? 'bg-rose-600' : 'bg-brand';
@@ -174,12 +175,23 @@ const App: React.FC = () => {
       ? generate90Chars("Unified_pathc_DMR_A0_STAGING_ENVIRONMENT_STABLE_RELEASE_v25_1_0_RC_")
       : "Unified_pathc_DMR_A0_RC";
 
+    const kpis = isUnifiedPatch 
+      ? [
+          { label: 'Dependencies Changes', val: `${MOCK_BUILD_DEPS.filter(d => d.isModified).length}/${MOCK_BUILD_DEPS.length}` },
+          { label: 'Package Size', val: '4KB' }
+        ]
+      : [
+          { label: 'Dep. Changes', val: `${MOCK_BUILD_DEPS.filter(d => d.isModified).length}/${MOCK_BUILD_DEPS.length}` },
+          { label: 'Package Size', val: '32MB' },
+          { label: 'Complexity', val: 'High' }
+        ];
+
     return (
       <div className="flex flex-col space-y-3 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-500 h-full overflow-hidden relative">
         <div className="flex items-center justify-between shrink-0 mb-0.5">
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">
-               {selectedStepId === 'step0' ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION"}
+               {isUnifiedPatch ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION"}
              </h1>
              <div className="h-4 w-[1px] bg-slate-200 mx-1" />
              <div className="flex items-center gap-1.5">
@@ -312,11 +324,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar shrink-0">
-          {[
-            { label: 'Dep. Changes', val: `${MOCK_BUILD_DEPS.filter(d => d.isModified).length}/${MOCK_BUILD_DEPS.length}`, color: 'blue' },
-            { label: 'Package Size', val: selectedStepId === 'step0' ? '4KB' : '32MB', color: 'slate' },
-            { label: 'Complexity', val: selectedStepId === 'step0' ? 'Low' : 'High', color: 'purple' }
-          ].map((stat, i) => (
+          {kpis.map((stat, i) => (
             <div key={i} className="flex-shrink-0 min-w-[140px] bg-white p-2.5 px-5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:border-slate-300">
               <div className="flex flex-col">
                 <span className="text-[15px] font-black text-slate-800 tracking-tight leading-none mb-0.5">{stat.val}</span>
@@ -329,15 +337,30 @@ const App: React.FC = () => {
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar scroll-smooth">
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{selectedStepId === 'step0' ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
+              <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
               <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.settings ? '' : 'rotate-90'}`} />
             </div>
             {!collapsedBuildSections.settings && (
                <div className="p-0 animate-in slide-in-from-top-2 duration-300">
-                  <div className="grid grid-cols-2 divide-x divide-slate-100">
-                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
-                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON STEP</span><span className="text-[12px] font-black text-slate-800 uppercase mono">AO</span></div>
-                  </div>
+                  {isUnifiedPatch ? (
+                    <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+                      <div className="flex flex-col divide-y divide-slate-100">
+                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Silicon</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
+                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC Signing</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
+                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SoC Encryption</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
+                      </div>
+                      <div className="flex flex-col divide-y divide-slate-100">
+                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step</span><span className="text-[12px] font-black text-slate-800 uppercase mono">A0</span></div>
+                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT Signing</span><span className="text-[12px] font-black text-rose-600 uppercase mono">Disabled</span></div>
+                        <div className="flex items-center justify-between px-6 py-2.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FIT Encryption</span><span className="text-[12px] font-black text-emerald-600 uppercase mono">Enabled</span></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 divide-x divide-slate-100">
+                      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
+                      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON STEP</span><span className="text-[12px] font-black text-slate-800 uppercase mono">AO</span></div>
+                    </div>
+                  )}
                </div>
             )}
           </section>
@@ -346,7 +369,7 @@ const App: React.FC = () => {
             <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-3 bg-brand rounded-full" />
-                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{selectedStepId === 'step0' ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
+                <span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH DEPENDENCIES' : 'IFWI DEPENDENCIES'}</span>
                 <span className="ml-2 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black mono">{MOCK_BUILD_DEPS.filter(d => d.isModified).length}/{MOCK_BUILD_DEPS.length}</span>
               </div>
               <div className="flex items-center gap-4">
@@ -365,7 +388,7 @@ const App: React.FC = () => {
                    <tbody className="divide-y divide-slate-50">
                       {displayedDeps.map((dep, i) => (
                         <tr key={i} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{selectedStepId === 'step0' ? 'Unified_' : ''}Ingredient_{dep.id}</td>
+                          <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{isUnifiedPatch ? 'Unified_' : ''}Ingredient_{dep.id}</td>
                           <td className="px-6 py-2.5 mono text-slate-400 tabular-nums">{dep.version}</td>
                           <td className="px-6 py-2.5 mono text-brand font-bold tabular-nums">v25.1.0</td>
                           <td className="px-6 py-2.5 text-right">
