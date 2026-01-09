@@ -107,46 +107,18 @@ export const MOCK_BUILD_DEPS: Release[] = Array.from({ length: 50 }, (_, i) => (
 export interface WorkflowStep {
   id: string;
   name: string;
-  status: 'Success' | 'In progress' | 'Pending';
+  status: 'Success' | 'In progress' | 'Pending' | 'Failed';
+  type: 'UP' | 'IFWI' | 'TEST';
 }
 
-export interface WorkflowStage {
-  id: string;
-  name: string;
-  status: 'Success' | 'In progress' | 'Pending';
-  progress: number;
-  steps: WorkflowStep[];
-}
-
-export const MOCK_WORKFLOW: WorkflowStage[] = [
-  {
-    id: 'stage0',
-    name: 'Patch Gen',
-    status: 'Success',
-    progress: 100,
-    steps: [
-      { id: 'step0', name: 'Unified patch', status: 'Success' },
-    ],
-  },
-  {
-    id: 'stage1',
-    name: 'IFWI Build',
-    status: 'Success',
-    progress: 100,
-    steps: [
-      { id: 'step1', name: 'IFWI Build Step', status: 'Success' },
-    ],
-  },
-  {
-    id: 'stage2',
-    name: 'Validation',
-    status: 'In progress',
-    progress: 45,
-    steps: [
-      { id: 'step2', name: 'Test Step', status: 'In progress' },
-      { id: 'step3', name: 'Performance Step', status: 'Pending' },
-    ],
-  },
+export const MOCK_WORKFLOW_STEPS: WorkflowStep[] = [
+  { id: 'step0', name: 'Unified Patch Build', status: 'Success', type: 'UP' },
+  { id: 'step1', name: 'IFWI Build Phase 1', status: 'Success', type: 'IFWI' },
+  { id: 'step2', name: 'IFWI Build Phase 2', status: 'Success', type: 'IFWI' },
+  { id: 'step3', name: 'IFWI Build Phase 3', status: 'Success', type: 'IFWI' },
+  { id: 'step4', name: 'IFWI Build Phase 4', status: 'In progress', type: 'IFWI' },
+  { id: 'step5', name: 'IFWI Build Phase 5', status: 'Pending', type: 'IFWI' },
+  { id: 'step6', name: 'Validation Test Run', status: 'Pending', type: 'TEST' },
 ];
 
 export const ICONS = {

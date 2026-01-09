@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { AppContextType, Project, NavigationContext, ContextState } from './types';
-import { COLORS, ICONS, MOCK_INGREDIENTS, MOCK_RELEASES, MOCK_PROJECTS, MOCK_KNOBS, MOCK_STRAPS, MOCK_BUILD_DEPS, MOCK_WORKFLOW, Ingredient, Release, Knob } from './constants';
+import { COLORS, ICONS, MOCK_INGREDIENTS, MOCK_RELEASES, MOCK_PROJECTS, MOCK_KNOBS, MOCK_STRAPS, MOCK_BUILD_DEPS, MOCK_WORKFLOW_STEPS, Ingredient, Release, Knob, WorkflowStep } from './constants';
 import SidebarTier1 from './components/SidebarTier1';
 import SidebarTier2 from './components/SidebarTier2';
 import Header from './components/Header';
@@ -33,7 +33,7 @@ const App: React.FC = () => {
     return nav.history[currentKey]?.activeTabId || 'Dashboard';
   }, [nav.activeContext, nav.activeProjectId, nav.history]);
 
-  const [selectedStepId, setSelectedStepId] = useState<string>('step2');
+  const [selectedStepId, setSelectedStepId] = useState<string>('step0');
   const [currentTestPhase, setCurrentTestPhase] = useState<TestStepPhaseId>('EXECUTION');
   const [edgeCaseId, setEdgeCaseId] = useState<EdgeCaseId>('NORMAL');
   const [isStateMenuOpen, setIsStateMenuOpen] = useState(false);
@@ -63,7 +63,6 @@ const App: React.FC = () => {
   const handleScroll = useCallback(() => {
     if (scrollContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-      // Hide bouncer if we scrolled down more than 50px or reached the bottom
       if (scrollTop > 50 || (scrollHeight - scrollTop - clientHeight < 10)) {
         setShowScrollBouncer(false);
       } else {
@@ -98,7 +97,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let interval: any;
-    const isBuildExecution = activeTab === 'Quick Builds' && (currentTestPhase !== 'DONE');
+    const isBuildExecution = (activeTab === 'Quick Builds' || activeTab === 'Workflows') && (currentTestPhase !== 'DONE');
     const isTestExecution = currentTestPhase === 'EXECUTION';
 
     if (isBuildExecution || isTestExecution) {
@@ -157,7 +156,8 @@ const App: React.FC = () => {
   };
 
   const cycleDemoPhase = () => {
-    if (activeTab === 'Quick Builds') {
+    const step = MOCK_WORKFLOW_STEPS.find(s => s.id === selectedStepId);
+    if (step?.type === 'UP' || step?.type === 'IFWI') {
       cycleBuildState();
       return;
     }
@@ -192,7 +192,8 @@ const App: React.FC = () => {
     const isSuccess = isCompleted && resOutcome === 'PASSED';
     const isFailed = isCompleted && resOutcome === 'FAILED';
     const isRunning = !isCompleted;
-    const isUnifiedPatch = selectedStepId === 'step0';
+    const step = MOCK_WORKFLOW_STEPS.find(s => s.id === selectedStepId);
+    const isUnifiedPatch = step?.type === 'UP';
 
     const cardBg = isSuccess ? 'bg-emerald-50/60' : isFailed ? 'bg-rose-50/60' : 'bg-blue-50/60';
     const statusBarColor = isSuccess ? 'bg-emerald-600' : isFailed ? 'bg-rose-600' : 'bg-brand';
@@ -221,7 +222,7 @@ const App: React.FC = () => {
         <div className="flex items-center justify-between shrink-0 mb-0.5">
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">
-               {isUnifiedPatch ? "Unified patch build" : "IFWI BUILD EXECUTION"}
+               {isUnifiedPatch ? "Unified patch build" : step?.name.toUpperCase() || "IFWI BUILD EXECUTION"}
              </h1>
              <div className="h-4 w-[1px] bg-slate-200 mx-1" />
              <div className="flex items-center gap-1.5">
@@ -381,7 +382,6 @@ const App: React.FC = () => {
             onScroll={handleScroll}
             className="h-full overflow-y-auto space-y-3 pr-1 custom-scrollbar scroll-smooth"
           >
-            {/* Settings Section */}
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
@@ -412,7 +412,6 @@ const App: React.FC = () => {
               )}
             </section>
 
-            {/* Dependencies Section */}
             <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
               <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3">
@@ -485,7 +484,6 @@ const App: React.FC = () => {
               )}
             </section>
 
-            {/* Build Logs Section */}
             <section className={`rounded-xl border shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${isFailed ? 'border-rose-300' : 'bg-white border-slate-200'}`}>
               <div onClick={() => toggleBuildSection('logs')} className={`px-5 py-3 border-b flex items-center justify-between cursor-pointer transition-colors ${isFailed ? 'bg-rose-50/30 border-rose-100 hover:bg-rose-50' : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50'}`}>
                 <div className="flex items-center gap-3">
@@ -527,7 +525,6 @@ const App: React.FC = () => {
             </section>
           </div>
 
-          {/* Scroll Bouncer Indicator - REFINED UI */}
           {showScrollBouncer && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-700 z-50">
                <div className="flex items-center gap-5 bg-white pl-8 pr-2 py-2 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 ring-8 ring-slate-100/30">
@@ -631,38 +628,71 @@ const App: React.FC = () => {
         <div className="flex-1 flex overflow-hidden">
           <aside className={`transition-all duration-300 border-r border-slate-200 bg-white flex flex-col shrink-0 z-10 ${isWorkflowSidebarCollapsed ? 'w-20' : 'w-[280px]'}`}>
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              {!isWorkflowSidebarCollapsed && <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">WORKFLOW STAGES <span className="text-slate-300 ml-1">3</span></h2>}
+              {!isWorkflowSidebarCollapsed && <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-2">WORKFLOW STEPS <span className="text-slate-300 ml-1">{MOCK_WORKFLOW_STEPS.length}</span></h2>}
               <button onClick={() => setIsWorkflowSidebarCollapsed(!isWorkflowSidebarCollapsed)} className="p-1.5 hover:bg-slate-50 rounded text-slate-400">
                 <svg className={`w-4 h-4 transition-transform ${isWorkflowSidebarCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7" />
                 </svg>
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar bg-slate-50/20">
-              {MOCK_WORKFLOW.map(stage => {
-                const isStageActive = stage.steps.some(s => s.id === selectedStepId);
+            <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar bg-slate-50/20">
+              {MOCK_WORKFLOW_STEPS.map(step => {
+                const isActive = selectedStepId === step.id;
                 return (
-                  <div key={stage.id} className={`p-3 rounded-lg border transition-all ${isStageActive ? 'border-blue-200 bg-white shadow-sm ring-2 ring-blue-50/10' : 'border-slate-100 bg-white'}`}>
-                    {!isWorkflowSidebarCollapsed && (
-                      <>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className={`w-1.5 h-1.5 rounded-full ${stage.status === 'Success' ? 'bg-emerald-500' : (stage.status === 'In progress' ? 'bg-blue-500' : 'bg-slate-300')}`} />
-                          <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{stage.name}</h3>
+                  <button 
+                    key={step.id} 
+                    onClick={() => { 
+                      setSelectedStepId(step.id); 
+                      if(step.type === 'UP' || step.type === 'IFWI') {
+                        // Reset outcome only if we're moving back into an execution state
+                        // This logic can be refined for demo purposes
+                      }
+                    }} 
+                    className={`
+                      group w-full text-left px-3 py-2 rounded-lg border transition-all flex items-center justify-between
+                      ${isActive 
+                        ? 'bg-white border-blue-200 shadow-sm ring-2 ring-blue-50/10 text-blue-700 font-bold' 
+                        : 'border-transparent text-slate-500 hover:bg-white hover:border-slate-100'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className={`
+                        shrink-0 w-5 h-5 rounded-full flex items-center justify-center
+                        ${step.status === 'Success' ? 'bg-emerald-100 text-emerald-600' : 
+                          step.status === 'In progress' ? 'bg-blue-100 text-blue-600' : 
+                          step.status === 'Failed' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}
+                      `}>
+                        {step.status === 'Success' ? (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        ) : step.status === 'In progress' ? (
+                          <div className="w-2.5 h-2.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <div className="w-1.5 h-1.5 bg-current rounded-full" />
+                        )}
+                      </div>
+                      {!isWorkflowSidebarCollapsed && (
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-[10px] uppercase tracking-tight truncate">{step.name}</span>
+                          <span className="text-[7px] uppercase font-black tracking-widest text-slate-400 opacity-60">
+                            {step.type === 'UP' ? 'Unified Patch' : step.type === 'IFWI' ? 'IFWI Build' : 'Validation'}
+                          </span>
                         </div>
-                        <div className="space-y-1">
-                          {stage.steps.map(step => (
-                            <button key={step.id} onClick={() => { setSelectedStepId(step.id); if(step.id === 'step0' || step.id === 'step1') setCurrentTestPhase('EXECUTION'); }} className={`w-full text-left px-2.5 py-1.5 rounded border transition-all flex items-center justify-between ${selectedStepId === step.id ? 'bg-blue-50 border-blue-100 text-blue-700 font-bold' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}><span className="text-[10px] uppercase tracking-tight">{step.name}</span></button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                    {!isWorkflowSidebarCollapsed && isActive && <ICONS.ChevronRight className="w-3 h-3 text-blue-400" />}
+                  </button>
                 );
               })}
             </div>
           </aside>
           <main className="flex-1 overflow-hidden relative bg-slate-50/30 px-10 py-6">
-             {(selectedStepId === 'step1' || selectedStepId === 'step0') ? renderQuickBuildStepView() : (selectedStepId === 'step2' || selectedStepId === 'step3') ? renderTestStepView() : <div className="p-20 text-center"><h1 className="text-slate-400 font-black tracking-widest uppercase">CONTENT UNAVAILABLE</h1></div>}
+             {(() => {
+                const step = MOCK_WORKFLOW_STEPS.find(s => s.id === selectedStepId);
+                if (step?.type === 'UP' || step?.type === 'IFWI') return renderQuickBuildStepView();
+                if (step?.type === 'TEST') return renderTestStepView();
+                return <div className="p-20 text-center"><h1 className="text-slate-400 font-black tracking-widest uppercase">CONTENT UNAVAILABLE</h1></div>;
+             })()}
           </main>
         </div>
       </div>
