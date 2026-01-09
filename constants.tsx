@@ -25,7 +25,6 @@ export interface Knob {
   isOverridden?: boolean;
 }
 
-// Generating a larger set of knobs to demonstrate pagination and filtering
 const generateKnobs = (): Knob[] => {
   const overridden: Knob[] = [
     { id: 'k1', name: 'DfxDcsRxDfeGainCoefficient', path: 'Socket Configuration/Memory Configuration/Memory Dfx Configuration/DCS RX DFE Gain Coefficient', displayValue: '1: +6 dB', rawValue: '0x1', status: 'active', isOverridden: true },
@@ -95,18 +94,15 @@ export const MOCK_RELEASES: Release[] = [
   { id: '1151', version: '2025.17.3.1', changedDeps: '0/0', releasedBy: 'Nagorski, Wojciech', releasedDate: '4/23/25 11:47 AM', releasedWW: '2025WW17.3' },
 ];
 
-export const MOCK_BUILD_DEPS: Release[] = [
-  { id: 'R102', version: 'v24.1.0', changedDeps: '2/4', releasedBy: 'System', releasedDate: 'Today', releasedWW: 'WW25.1', isModified: true },
-  { id: 'R099', version: 'v23.9.4', changedDeps: '0/0', releasedBy: 'System', releasedDate: 'Yesterday', releasedWW: 'WW24.9', isModified: false },
-  { id: 'R084', version: 'v22.0.1', changedDeps: '1/2', releasedBy: 'System', releasedDate: '2d ago', releasedWW: 'WW24.7', isModified: true },
-  { id: 'R077', version: 'v21.5.0', changedDeps: '0/0', releasedBy: 'System', releasedDate: '1w ago', releasedWW: 'WW24.1', isModified: false },
-  { id: 'R065', version: 'v20.2.1', changedDeps: '1/5', releasedBy: 'Admin', releasedDate: '2w ago', releasedWW: 'WW24.0', isModified: true },
-  { id: 'R052', version: 'v19.1.0', changedDeps: '0/0', releasedBy: 'Admin', releasedDate: '3w ago', releasedWW: 'WW23.9', isModified: false },
-  { id: 'R041', version: 'v18.4.2', changedDeps: '3/3', releasedBy: 'BuildBot', releasedDate: '1m ago', releasedWW: 'WW23.5', isModified: true },
-  { id: 'R038', version: 'v18.0.0', changedDeps: '0/0', releasedBy: 'BuildBot', releasedDate: '1.2m ago', releasedWW: 'WW23.1', isModified: false },
-  { id: 'R022', version: 'v17.2.5', changedDeps: '1/1', releasedBy: 'System', releasedDate: '2m ago', releasedWW: 'WW22.8', isModified: true },
-  { id: 'R010', version: 'v16.0.0', changedDeps: '0/0', releasedBy: 'System', releasedDate: '3m ago', releasedWW: 'WW22.4', isModified: false },
-];
+export const MOCK_BUILD_DEPS: Release[] = Array.from({ length: 50 }, (_, i) => ({
+  id: `R${100 - i}`,
+  version: `v${24 - Math.floor(i/5)}.${i % 10}.0`,
+  changedDeps: `${i % 3}/${(i % 3) + 2}`,
+  releasedBy: i % 2 === 0 ? 'System' : 'Admin',
+  releasedDate: `${i + 1}d ago`,
+  releasedWW: `WW25.${10 - (i % 10)}`,
+  isModified: i % 3 === 0
+}));
 
 export interface WorkflowStep {
   id: string;

@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { AppContextType, Project, NavigationContext, ContextState } from './types';
 import { COLORS, ICONS, MOCK_INGREDIENTS, MOCK_RELEASES, MOCK_PROJECTS, MOCK_KNOBS, MOCK_STRAPS, MOCK_BUILD_DEPS, MOCK_WORKFLOW, Ingredient, Release, Knob } from './constants';
@@ -10,6 +9,8 @@ type TestStepPhaseId = 'DISCOVERY' | 'REVIEW' | 'SUBMISSION' | 'EXECUTION' | 'RE
 const TEST_PHASE_ORDER: TestStepPhaseId[] = ['DISCOVERY', 'REVIEW', 'SUBMISSION', 'EXECUTION', 'RESULT', 'DONE'];
 
 type EdgeCaseId = 'NORMAL' | 'LONG_BASELINE' | 'LONG_TARGET' | 'LONG_BOTH';
+
+const ITEMS_PER_PAGE = 10;
 
 const App: React.FC = () => {
   const [nav, setNav] = useState<NavigationContext>({
@@ -39,9 +40,22 @@ const App: React.FC = () => {
   const [isWorkflowSidebarCollapsed, setIsWorkflowSidebarCollapsed] = useState(false);
   
   const [showAllDeps, setShowAllDeps] = useState(false);
+  const [depsPage, setDepsPage] = useState(1);
+
   const displayedDeps = useMemo(() => {
     return showAllDeps ? MOCK_BUILD_DEPS : MOCK_BUILD_DEPS.filter(d => d.isModified);
   }, [showAllDeps]);
+
+  const paginatedDeps = useMemo(() => {
+    const start = (depsPage - 1) * ITEMS_PER_PAGE;
+    return displayedDeps.slice(start, start + ITEMS_PER_PAGE);
+  }, [displayedDeps, depsPage]);
+
+  const totalPages = Math.ceil(displayedDeps.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setDepsPage(1);
+  }, [showAllDeps, selectedStepId]);
 
   const [resOutcome, setResOutcome] = useState<'PASSED' | 'FAILED' | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -54,12 +68,7 @@ const App: React.FC = () => {
   const [collapsedBuildSections, setCollapsedBuildSections] = useState<Record<string, boolean>>({
     settings: false,
     deps: false,
-  });
-
-  const [collapsedTestSections, setCollapsedTestSections] = useState<Record<string, boolean>>({
-    settings: false,
-    testlines: false,
-    matrix: false,
+    logs: true,
   });
 
   useEffect(() => {
@@ -111,11 +120,18 @@ const App: React.FC = () => {
     if (currentTestPhase !== 'DONE') {
       setCurrentTestPhase('DONE');
       setResOutcome('PASSED');
+      setCollapsedBuildSections({ settings: false, deps: false, logs: true });
     } else if (resOutcome === 'PASSED') {
       setResOutcome('FAILED');
+      setCollapsedBuildSections({
+        settings: true,
+        deps: true,
+        logs: false
+      });
     } else {
       setCurrentTestPhase('EXECUTION');
       setResOutcome(null);
+      setCollapsedBuildSections({ settings: false, deps: false, logs: true });
     }
   };
 
@@ -139,7 +155,6 @@ const App: React.FC = () => {
     }
   };
 
-  // 90 char generator
   const generate90Chars = (prefix: string) => {
     const base = prefix;
     const filler = "X".repeat(Math.max(0, 90 - base.length));
@@ -178,11 +193,11 @@ const App: React.FC = () => {
     const kpis = isUnifiedPatch 
       ? [
           { label: 'Dependencies Changes', val: `${MOCK_BUILD_DEPS.filter(d => d.isModified).length}/${MOCK_BUILD_DEPS.length}` },
-          { label: 'Package Size', val: '4KB' }
+          ...(isSuccess ? [{ label: 'Package Size', val: '4KB' }] : [])
         ]
       : [
           { label: 'Dep. Changes', val: `${MOCK_BUILD_DEPS.filter(d => d.isModified).length}/${MOCK_BUILD_DEPS.length}` },
-          { label: 'Package Size', val: '32MB' },
+          ...(isSuccess ? [{ label: 'Package Size', val: '32MB' }] : []),
           { label: 'Complexity', val: 'High' }
         ];
 
@@ -191,7 +206,7 @@ const App: React.FC = () => {
         <div className="flex items-center justify-between shrink-0 mb-0.5">
           <div className="flex items-center gap-4">
              <h1 className="text-[18px] font-black text-slate-800 tracking-tight uppercase shrink-0">
-               {isUnifiedPatch ? "UNIFIED PATCH EXECUTION" : "IFWI BUILD EXECUTION"}
+               {isUnifiedPatch ? "Unified patch build" : "IFWI BUILD EXECUTION"}
              </h1>
              <div className="h-4 w-[1px] bg-slate-200 mx-1" />
              <div className="flex items-center gap-1.5">
@@ -209,7 +224,6 @@ const App: React.FC = () => {
              )}
           </div>
 
-          {/* Page Level CTAs */}
           <div className="flex items-center gap-2">
             {isSuccess && (
               <div className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-300">
@@ -237,7 +251,7 @@ const App: React.FC = () => {
                        <TruncatedText text={targetName} className="text-[20px] font-black text-slate-800 leading-none mb-1 uppercase tracking-tight" />
                        <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold text-emerald-700 mono tabular-nums uppercase whitespace-nowrap">v25.1.0-RC // Release ID: 1166</span>
-                          <button onClick={() => copyToClipboard('1166', 'Release ID')} className="p-0.5 text-emerald-600/40 hover:text-emerald-700 transition-colors"><ICONS.Copy className="w-3 h-3"/></button>
+                          <button onClick={() => copyToClipboard('1166', 'Release ID')} className="p-0.5 text-emerald-600/40 hover:text-emerald-700 transition-colors" title="Copy Release ID"><ICONS.Copy className="w-3 h-3"/></button>
                        </div>
                     </div>
                     
@@ -260,7 +274,13 @@ const App: React.FC = () => {
                        <TruncatedText text={baselineName} className="text-[11px] font-bold text-slate-800 uppercase" />
                        <div className="flex items-center gap-1.5">
                          <span className="text-[10px] font-medium text-slate-500 mono tabular-nums truncate whitespace-nowrap">v24.12.0 // ID: 1016</span>
-                         <button onClick={() => copyToClipboard('1016', 'Baseline ID')} className="p-0.5 text-slate-300 hover:text-blue-600 transition-all rounded hover:bg-black/5"><ICONS.Copy className="w-2.5 h-2.5" /></button>
+                         <button onClick={() => copyToClipboard('1016', 'Baseline ID')} className="p-0.5 text-slate-300 hover:text-blue-600 transition-all rounded hover:bg-black/5" title="Copy Baseline ID"><ICONS.Copy className="w-2.5 h-2.5" /></button>
+                         {isUnifiedPatch && (
+                            <>
+                              <div className="w-[1px] h-2 bg-slate-200 mx-0.5" />
+                              <span className="text-[9px] font-black text-brand uppercase tracking-tighter opacity-80">Origin: {MOCK_PROJECTS[0].name}</span>
+                            </>
+                         )}
                        </div>
                     </div>
                     <div className="flex items-center justify-center shrink-0 px-4 opacity-10">
@@ -287,6 +307,12 @@ const App: React.FC = () => {
                   <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-1 duration-300 min-w-0 overflow-hidden">
                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none shrink-0">BASELINE:</span>
                      <TruncatedText text={`${baselineName} v24.12.0 // ID: 1016`} className="text-[10px] font-bold text-slate-500 mono opacity-70 leading-none" />
+                     {isUnifiedPatch && (
+                       <div className="flex items-center gap-1 shrink-0 ml-1">
+                          <div className="w-1 h-1 rounded-full bg-slate-200" />
+                          <span className="text-[9px] font-black text-slate-400 uppercase">PROJECT: {MOCK_PROJECTS[0].name}</span>
+                       </div>
+                     )}
                   </div>
                 )}
              </div>
@@ -335,6 +361,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar scroll-smooth">
+          {/* Settings Section */}
           <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div onClick={() => toggleBuildSection('settings')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3"><div className="w-1 h-3 bg-amber-500 rounded-full" /><span className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{isUnifiedPatch ? 'PATCH SETTINGS' : 'IFWI BUILD SETTINGS'}</span></div>
@@ -358,14 +385,15 @@ const App: React.FC = () => {
                   ) : (
                     <div className="grid grid-cols-2 divide-x divide-slate-100">
                       <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON FAMILY</span><span className="text-[12px] font-black text-slate-800 uppercase mono">DMR-AP</span></div>
-                      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SILICON STEP</span><span className="text-[12px] font-black text-slate-800 uppercase mono">AO</span></div>
+                      <div className="flex items-center justify-between px-6 py-3 border-b border-slate-50"><span className="text-[10px] font-black text-slate-800 uppercase mono">AO</span></div>
                     </div>
                   )}
                </div>
             )}
           </section>
 
-          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Dependencies Section */}
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div onClick={() => toggleBuildSection('deps')} className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30 cursor-pointer hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-1 h-3 bg-brand rounded-full" />
@@ -380,24 +408,100 @@ const App: React.FC = () => {
               </div>
             </div>
             {!collapsedBuildSections.deps && (
-               <div className="overflow-x-auto animate-in fade-in duration-300">
-                 <table className="w-full text-left text-[11px] border-collapse">
-                   <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
-                     <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th><th className="px-6 py-3 text-right">Status</th></tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {displayedDeps.map((dep, i) => (
-                        <tr key={i} className="hover:bg-slate-50/50">
-                          <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{isUnifiedPatch ? 'Unified_' : ''}Ingredient_{dep.id}</td>
-                          <td className="px-6 py-2.5 mono text-slate-400 tabular-nums">{dep.version}</td>
-                          <td className="px-6 py-2.5 mono text-brand font-bold tabular-nums">v25.1.0</td>
-                          <td className="px-6 py-2.5 text-right">
-                             {dep.isModified ? <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase tracking-tighter">Modified</span> : <span className="px-2 py-0.5 text-slate-300 text-[9px] font-black uppercase tracking-tighter">Unchanged</span>}
-                          </td>
-                        </tr>
-                      ))}
-                   </tbody>
-                 </table>
+               <>
+                 <div className="overflow-x-auto animate-in fade-in duration-300">
+                   <table className="w-full text-left text-[11px] border-collapse">
+                     <thead className="bg-slate-50 font-black text-[9px] text-slate-400 uppercase tracking-widest border-b border-slate-100 sticky top-0">
+                       <tr><th className="px-6 py-3">Ingredient</th><th className="px-6 py-3">Baseline</th><th className="px-6 py-3">Target</th><th className="px-6 py-3 text-right">Status</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-50">
+                        {paginatedDeps.map((dep, i) => (
+                          <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-6 py-2.5 font-bold text-slate-700 truncate max-w-[200px]">{isUnifiedPatch ? 'Unified_' : ''}Ingredient_{dep.id}</td>
+                            <td className="px-6 py-2.5 mono text-slate-400 tabular-nums">{dep.version}</td>
+                            <td className="px-6 py-2.5 mono text-brand font-bold tabular-nums">v25.1.0</td>
+                            <td className="px-6 py-2.5 text-right">
+                               {dep.isModified ? <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded text-[9px] font-black uppercase tracking-tighter">Modified</span> : <span className="px-2 py-0.5 text-slate-300 text-[9px] font-black uppercase tracking-tighter">Unchanged</span>}
+                            </td>
+                          </tr>
+                        ))}
+                     </tbody>
+                   </table>
+                 </div>
+                 
+                 <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/20">
+                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                     Showing <span className="text-slate-800">{(depsPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-slate-800">{Math.min(depsPage * ITEMS_PER_PAGE, displayedDeps.length)}</span> of <span className="text-slate-800">{displayedDeps.length}</span>
+                   </div>
+                   <div className="flex items-center gap-1">
+                     <button 
+                        disabled={depsPage === 1}
+                        onClick={() => setDepsPage(p => Math.max(1, p - 1))}
+                        className={`p-1.5 rounded border border-slate-200 transition-all ${depsPage === 1 ? 'opacity-30 cursor-not-allowed bg-slate-50' : 'hover:bg-white hover:text-brand'}`}
+                     >
+                       <svg className="w-3.5 h-3.5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                     </button>
+                     <div className="flex items-center gap-0.5 mx-2">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                          <button 
+                            key={page}
+                            onClick={() => setDepsPage(page)}
+                            className={`w-7 h-7 flex items-center justify-center rounded text-[10px] font-black transition-all ${depsPage === page ? 'bg-brand text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                     </div>
+                     <button 
+                        disabled={depsPage === totalPages}
+                        onClick={() => setDepsPage(p => Math.min(totalPages, p + 1))}
+                        className={`p-1.5 rounded border border-slate-200 transition-all ${depsPage === totalPages ? 'opacity-30 cursor-not-allowed bg-slate-50' : 'hover:bg-white hover:text-brand'}`}
+                     >
+                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
+                     </button>
+                   </div>
+                 </div>
+               </>
+            )}
+          </section>
+
+          {/* Build Logs Section - Refined as requested */}
+          <section className={`rounded-xl border shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${isFailed ? 'border-rose-300' : 'bg-white border-slate-200'}`}>
+            <div onClick={() => toggleBuildSection('logs')} className={`px-5 py-3 border-b flex items-center justify-between cursor-pointer transition-colors ${isFailed ? 'bg-rose-50/30 border-rose-100 hover:bg-rose-50' : 'bg-slate-50/30 border-slate-100 hover:bg-slate-50'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-1 h-3 rounded-full ${isRunning ? 'bg-blue-500' : isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-800">BUILD EXECUTION LOGS</span>
+              </div>
+              <ICONS.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${collapsedBuildSections.logs ? '' : 'rotate-90'}`} />
+            </div>
+            {!collapsedBuildSections.logs && (
+               <div className="p-8 flex flex-col items-center justify-center gap-5 animate-in slide-in-from-top-2 duration-300 min-h-[160px] bg-white">
+                  {isRunning ? (
+                    <div className="flex flex-col items-center text-center">
+                       <div className="w-8 h-8 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4" />
+                       <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest max-w-[380px] leading-relaxed">
+                          Detailed execution logs are being generated and will be available for download once the build process completes.
+                       </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center text-center">
+                       <ICONS.Terminal className={`w-10 h-10 mb-4 opacity-30 ${isFailed ? 'text-rose-600' : 'text-slate-400'}`} />
+                       <div className="mb-4">
+                          <h4 className={`text-[12px] font-black uppercase tracking-widest mb-1 ${isSuccess ? 'text-emerald-700' : 'text-slate-800'}`}>
+                             {isSuccess ? 'Build Logs Ready' : 'Execution Interrupted'}
+                          </h4>
+                          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest max-w-[340px] leading-relaxed">
+                             {isSuccess 
+                               ? "Direct log visibility is limited at the moment. Please download the full log for detailed analysis."
+                               : "A failure occurred during build generation. Please download the log file to identify the root cause."
+                             }
+                          </p>
+                       </div>
+                       <button className={`flex items-center gap-2 px-6 py-2.5 rounded shadow-md text-[10px] font-black uppercase tracking-widest transition-all ${isFailed ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white'}`}>
+                          <ICONS.Download className="w-4 h-4" /> {isFailed ? 'DOWNLOAD FAILURE LOG' : 'DOWNLOAD BUILD LOG'}
+                       </button>
+                    </div>
+                  )}
                </div>
             )}
           </section>
@@ -547,7 +651,8 @@ const App: React.FC = () => {
   };
 
   const toggleBuildSection = (section: string) => setCollapsedBuildSections(prev => ({ ...prev, [section]: !prev[section] }));
-  const toggleTestSection = (section: string) => setCollapsedTestSections(prev => ({ ...prev, [section]: !prev[section] }));
+  // Fixed error where setCollapsedTestSections was not defined.
+  const toggleTestSection = (section: string) => setCollapsedBuildSections(prev => ({ ...prev, [section]: !prev[section] }));
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-white selection:bg-blue-100 selection:text-blue-900">
